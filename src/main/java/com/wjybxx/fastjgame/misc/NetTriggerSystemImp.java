@@ -16,6 +16,7 @@
 
 package com.wjybxx.fastjgame.misc;
 
+import com.wjybxx.fastjgame.manager.NetTimeManager;
 import com.wjybxx.fastjgame.trigger.Timer;
 import com.wjybxx.fastjgame.trigger.TriggerSystemImp;
 
