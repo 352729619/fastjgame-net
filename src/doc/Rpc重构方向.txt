@@ -1,0 +1,40 @@
+// 1. Message --- 直接返回结果
+// R result = onRequest(remoteGuid, msg);
+// rpcChannel.write(result);
+
+Message onRequest(long remoteGuid, RoleType roleType, Message msg) {
+
+}
+
+// 2. void ---- 可能无法直接返回结果的类型，需要持有一个channel，可以在未来返回
+// onRequest(remoteGuid, msg, rpcChannel);
+
+void onRequest(long remoteGuid, RoleType roleType, Message msg, RpcChannel rpcChannel) {
+    rpcChannel.write(result);
+}
+
+RpcCall {
+    // 接收方信息
+    long remoteGuid; --- 由发送方添加
+    // 请求编号和内容 --- 由发送方添加
+    long requestGuid;
+    Message request;
+}
+
+// 玩家发消息也可以这样
+RpcRequest {
+    // 发送方信息 ---- 由connectManager添加
+    long callerGuid;
+    RoleType callerType;
+
+    // 请求编号和内容 --- 由发送方添加
+    long requestGuid;
+    Message msg;
+}
+
+RpcResponse {
+    // 哪一个请求的返回
+    long requestGuid;
+    // 返回结果
+    Message msg;
+}
