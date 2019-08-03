@@ -36,6 +36,6 @@ public class AckPingPongMessage extends NetMessage {
 
     @Override
     public AckPingPongMessageTO build(long ack) {
-        return new AckPingPongMessageTO(ack, getSequence());
+        return new AckPingPongMessageTO(ack, sequence);
     }
 }

@@ -1,3 +1,19 @@
+/*
+ * Copyright 2019 wjybxx
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.wjybxx.fastjgame.eventloop;
 
 import com.google.inject.Guice;
@@ -62,13 +78,19 @@ public class NetEventLoopImp extends SingleThreadEventLoop implements NetEventLo
 		// 创建其它管理器
 		managerWrapper = injector.getInstance(NetManagerWrapper.class);
 		netConfigManager = managerWrapper.getNetConfigManager();
-		nettyThreadManager = managerWrapper.getNettyThreadManager();
-		httpClientManager = managerWrapper.getHttpClientManager();
+
 		s2CSessionManager = managerWrapper.getS2CSessionManager();
 		c2SSessionManager = managerWrapper.getC2SSessionManager();
 		httpSessionManager = managerWrapper.getHttpSessionManager();
+		nettyThreadManager = managerWrapper.getNettyThreadManager();
+		httpClientManager = managerWrapper.getHttpClientManager();
 		netTimeManager = managerWrapper.getNetTimeManager();
 		netTimerManager = managerWrapper.getNetTimerManager();
+
+		// 解决循环依赖
+		s2CSessionManager.setManagerWrapper(managerWrapper);
+		c2SSessionManager.setManagerWrapper(managerWrapper);
+		httpSessionManager.setManagerWrapper(managerWrapper);
 	}
 
 	@Nullable
@@ -104,8 +126,15 @@ public class NetEventLoopImp extends SingleThreadEventLoop implements NetEventLo
 			if (registeredUserMap.containsKey(localGuid)) {
 				throw new IllegalArgumentException("user " + localGuid + " is already registered!");
 			}
+			// 创建context
 			NetContextImp netContext = new NetContextImp(localGuid, localRole, localEventLoop, this, managerWrapper);
 			registeredUserMap.put(localGuid, netContext);
+			// 监听用户线程关闭
+			if (registeredUserEventLoopSet.add(localEventLoop)) {
+				localEventLoop.terminationFuture().addListener(future -> {
+					onUserEventLoopTerminal(localEventLoop);
+				}, this);
+			}
 			return netContext;
 		});
 	}
@@ -120,6 +149,9 @@ public class NetEventLoopImp extends SingleThreadEventLoop implements NetEventLo
 	@Override
 	protected void loop() {
 		for (;;) {
+			// 执行任务
+			runAllTasks();
+
 			// 更新时间
 			netTimeManager.update(System.currentTimeMillis());
 			// 刷帧

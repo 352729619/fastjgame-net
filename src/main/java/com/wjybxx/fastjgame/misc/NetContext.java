@@ -1,8 +1,26 @@
+/*
+ * Copyright 2019 wjybxx
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.wjybxx.fastjgame.misc;
 
+import com.wjybxx.fastjgame.annotation.UnstableApi;
 import com.wjybxx.fastjgame.concurrent.EventLoop;
 import com.wjybxx.fastjgame.concurrent.ListenableFuture;
 import com.wjybxx.fastjgame.eventloop.NetEventLoop;
+import com.wjybxx.fastjgame.manager.NetEventManager;
 import com.wjybxx.fastjgame.net.*;
 import com.wjybxx.fastjgame.net.initializer.ChannelInitializerSupplier;
 import okhttp3.Response;
@@ -42,6 +60,13 @@ public interface NetContext {
 	 * （可实现多个NetContext绑定到相同的NetEventLoop，可消除不必要的同步）
 	 */
 	NetEventLoop netEventLoop();
+
+	/**
+	 * 暂时做个弊，不然测试不好做
+	 * TODO 优化initializer问题
+	 */
+	@UnstableApi
+	NetEventManager netEventManager();
 
 	/**
 	 * 从注册的NetEventLoop上取消注册，会关闭该context关联的所有会话。

@@ -69,7 +69,7 @@ public class C2SSessionManager {
 
     private static final Logger logger = LoggerFactory.getLogger(C2SSessionManager.class);
 
-    private final NetManagerWrapper managerWrapper;
+    private NetManagerWrapper managerWrapper;
     private final NetConfigManager netConfigManager;
     private final AcceptManager acceptManager;
     private final NetTimeManager netTimeManager;
@@ -78,13 +78,16 @@ public class C2SSessionManager {
     private final Long2ObjectMap<UserInfo> userInfoMap = new Long2ObjectOpenHashMap<>();
 
     @Inject
-    public C2SSessionManager(NetManagerWrapper managerWrapper, NetConfigManager netConfigManager,
-                             AcceptManager acceptManager, NetTimeManager netTimeManager, TokenManager tokenManager) {
-        this.managerWrapper = managerWrapper;
+    public C2SSessionManager(NetConfigManager netConfigManager, AcceptManager acceptManager,
+                             NetTimeManager netTimeManager, TokenManager tokenManager) {
         this.netConfigManager = netConfigManager;
         this.acceptManager = acceptManager;
         this.netTimeManager = netTimeManager;
         this.tokenManager = tokenManager;
+    }
+
+    public void setManagerWrapper(NetManagerWrapper managerWrapper) {
+        this.managerWrapper = managerWrapper;
     }
 
     public void tick(){
@@ -343,13 +346,7 @@ public class C2SSessionManager {
         final Channel eventChannel = rpcResponseEventParam.channel();
         RpcResponseMessageTO responseMessageTO = rpcResponseEventParam.messageTO();
         ifEventChannelOK(eventChannel, rpcResponseEventParam, c2SSessionState -> {
-            SessionWrapper sessionWrapper = c2SSessionState.sessionWrapper;
-            RpcPromiseInfo rpcPromiseInfo = sessionWrapper.rpcPromiseMap.remove(responseMessageTO.getRequestGuid());
-            if (null != rpcPromiseInfo) {
-                // 为甚要try？因为其它地方可能会取消等
-                rpcPromiseInfo.rpcPromise.trySuccess(responseMessageTO.getRpcResponse());
-            }
-            // else 超时了
+            c2SSessionState.onRcvServerRpcResponse(eventChannel, rpcResponseEventParam);
         });
     }
 
@@ -503,6 +500,10 @@ public class C2SSessionManager {
             throw new IllegalStateException(this.getClass().getSimpleName());
         }
 
+        protected void onRcvServerRpcResponse(Channel eventChannel, RpcResponseEventParam responseEventParam) {
+            throw new IllegalStateException(this.getClass().getSimpleName());
+        }
+
         /**
          * 当收到服务器的ack-pong消息包
          * @param eventChannel 产生事件的channel
@@ -527,6 +528,7 @@ public class C2SSessionManager {
         protected void addToNeedSendQueue(UnsentMessage unsentMessage) {
             getMessageQueue().getNeedSendQueue().add(unsentMessage);
         }
+
     }
 
     /**
@@ -747,11 +749,14 @@ public class C2SSessionManager {
             // 增加验证次数
             if (verifiedTimes==1){
                 logger.info("first verified success, sessionInfo={}", session);
-                NetContext netContext = sessionWrapper.userInfo.netContext;
-                // 提交到用户线程
-                ConcurrentUtils.tryCommit(netContext.localEventLoop(), ()-> {
-                    sessionWrapper.getLifecycleAware().onSessionConnected(session);
-                });
+                if (session.tryActive()) {
+                    NetContext netContext = sessionWrapper.userInfo.netContext;
+                    // 提交到用户线程
+                    ConcurrentUtils.tryCommit(netContext.localEventLoop(), ()-> {
+                        sessionWrapper.getLifecycleAware().onSessionConnected(session);
+                    });
+                }
+                // else 会话已关闭
             }else {
                 logger.info("reconnect verified success, verifiedTimes={},sessionInfo={}", verifiedTimes, session);
 
@@ -783,6 +788,7 @@ public class C2SSessionManager {
             if (isNeedSendAckPing()){
                 messageQueue.getNeedSendQueue().add(new UnsentAckPingPong());
                 hasPingMessage=true;
+                logger.debug("send ack ping");
             }
 
             // 有待发送的消息则发送
@@ -864,18 +870,33 @@ public class C2SSessionManager {
         }
 
         @Override
+        public void onRcvServerRpcResponse(Channel eventChannel, RpcResponseEventParam responseEventParam) {
+            final RpcResponseMessageTO responseMessageTO = responseEventParam.messageTO();
+            ifSequenceAndAckOk(responseMessageTO, () -> {
+                RpcPromiseInfo rpcPromiseInfo = sessionWrapper.rpcPromiseMap.remove(responseMessageTO.getRequestGuid());
+                if (null != rpcPromiseInfo) {
+                    // 为甚要try？因为其它地方可能会取消等
+                    rpcPromiseInfo.rpcPromise.trySuccess(responseMessageTO.getRpcResponse());
+                }
+            });
+            // else 超时了
+        }
+
+        @Override
         protected void onRcvServerAckPong(Channel eventChannel, AckPingPongEventParam ackPongParam) {
             hasPingMessage = false;
             ifSequenceAndAckOk(ackPongParam.messageTO(), ConcurrentUtils.NO_OP_TASK);
+            logger.debug("send ack pong");
         }
 
         @Override
         protected void onRcvServerMessage(Channel eventChannel, OneWayMessageEventParam oneWayMessageEventParam) {
-            ifSequenceAndAckOk(oneWayMessageEventParam.messageTO(), () -> {
+            OneWayMessageTO oneWayMessageTO = oneWayMessageEventParam.messageTO();
+            ifSequenceAndAckOk(oneWayMessageTO, () -> {
                 // 提交到用户线程
                 ConcurrentUtils.tryCommit(sessionWrapper.getNetContext().localEventLoop(), () -> {
                     try {
-                        sessionWrapper.messageHandler.onMessage(session, oneWayMessageEventParam.messageTO());
+                        sessionWrapper.messageHandler.onMessage(session, oneWayMessageTO.getMessage());
                     } catch (Exception e){
                         ConcurrentUtils.rethrow(e);
                     }

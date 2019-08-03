@@ -20,7 +20,6 @@ import com.google.inject.Inject;
 import com.wjybxx.fastjgame.concurrent.EventLoop;
 import com.wjybxx.fastjgame.configwrapper.ConfigWrapper;
 import com.wjybxx.fastjgame.eventloop.NetEventLoopManager;
-import com.wjybxx.fastjgame.manager.*;
 import com.wjybxx.fastjgame.misc.HostAndPort;
 import com.wjybxx.fastjgame.misc.HttpResponseHelper;
 import com.wjybxx.fastjgame.misc.NetContext;
@@ -55,7 +54,7 @@ import java.util.Map;
 @NotThreadSafe
 public class HttpSessionManager {
 
-	private final NetManagerWrapper managerWrapper;
+	private NetManagerWrapper managerWrapper;
 	private final NetEventLoopManager netEventLoopManager;
 	private final NetConfigManager netConfigManager;
 	private final NetTimeManager netTimeManager;
@@ -68,15 +67,18 @@ public class HttpSessionManager {
 	private final Long2ObjectMap<UserInfo> userInfoMap = new Long2ObjectOpenHashMap<>();
 
 	@Inject
-	public HttpSessionManager(NetTimerManager netTimerManager, NetManagerWrapper managerWrapper, NetEventLoopManager netEventLoopManager, NetConfigManager netConfigManager,
+	public HttpSessionManager(NetTimerManager netTimerManager, NetEventLoopManager netEventLoopManager, NetConfigManager netConfigManager,
 							  NetTimeManager netTimeManager, AcceptManager acceptManager) {
-		this.managerWrapper = managerWrapper;
 		this.netEventLoopManager = netEventLoopManager;
 		this.netConfigManager = netConfigManager;
 		this.netTimeManager = netTimeManager;
 		this.acceptManager = acceptManager;
 		Timer timer = new Timer(this.netConfigManager.httpSessionTimeout()*1000,Integer.MAX_VALUE,this::checkSessionTimeout);
 		netTimerManager.addTimer(timer);
+	}
+
+	public void setManagerWrapper(NetManagerWrapper managerWrapper) {
+		this.managerWrapper = managerWrapper;
 	}
 
 	/**

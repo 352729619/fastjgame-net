@@ -16,6 +16,8 @@
 
 package com.wjybxx.fastjgame.net;
 
+import com.wjybxx.fastjgame.utils.ConcurrentUtils;
+
 /**
  * 编解码器帮助类，对{@link MessageMapper} 和 {@link MessageSerializer} 进行绑定。
  *
@@ -40,7 +42,7 @@ public final class CodecHelper {
      */
     private final MessageSerializer messageSerializer;
 
-    public CodecHelper(MessageMapper messageMapper, MessageSerializer messageSerializer) {
+    private CodecHelper(MessageMapper messageMapper, MessageSerializer messageSerializer) {
         this.messageMapper = messageMapper;
         this.messageSerializer = messageSerializer;
     }
@@ -51,5 +53,28 @@ public final class CodecHelper {
 
     public MessageSerializer getMessageSerializer() {
         return messageSerializer;
+    }
+
+    public static CodecHelper newInstance(MessageMapper messageMapper, MessageSerializer messageSerializer) {
+        try {
+            messageSerializer.init(messageMapper);
+            return new CodecHelper(messageMapper, messageSerializer);
+        } catch (Exception e){
+            ConcurrentUtils.rethrow(e);
+            // unreachable
+            return null;
+        }
+    }
+
+    public static CodecHelper newInstance(MessageMappingStrategy messageMappingStrategy, MessageSerializer messageSerializer) {
+        try {
+            MessageMapper messageMapper = MessageMapper.newInstance(messageMappingStrategy);
+            messageSerializer.init(messageMapper);
+            return new CodecHelper(messageMapper, messageSerializer);
+        } catch (Exception e){
+            ConcurrentUtils.rethrow(e);
+            // unreachable
+            return null;
+        }
     }
 }

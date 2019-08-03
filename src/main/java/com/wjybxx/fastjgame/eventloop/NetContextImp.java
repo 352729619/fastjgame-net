@@ -18,6 +18,7 @@ package com.wjybxx.fastjgame.eventloop;
 
 import com.wjybxx.fastjgame.concurrent.EventLoop;
 import com.wjybxx.fastjgame.concurrent.ListenableFuture;
+import com.wjybxx.fastjgame.manager.NetEventManager;
 import com.wjybxx.fastjgame.manager.NetManagerWrapper;
 import com.wjybxx.fastjgame.misc.HostAndPort;
 import com.wjybxx.fastjgame.misc.NetContext;
@@ -73,6 +74,11 @@ class NetContextImp implements NetContext {
 	@Override
 	public NetEventLoop netEventLoop() {
 		return netEventLoop;
+	}
+
+	@Override
+	public NetEventManager netEventManager() {
+		return managerWrapper.getNetEventManager();
 	}
 
 	@Override

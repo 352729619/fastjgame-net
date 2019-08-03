@@ -42,7 +42,8 @@ public class TCPServerChannelInitializer extends ChannelInitializer<SocketChanne
     private final CodecHelper codecHelper;
     private final NetEventManager netEventManager;
 
-    public TCPServerChannelInitializer(long localGuid, int maxFrameLength, CodecHelper codecHelper, NetEventManager netEventManager) {
+    public TCPServerChannelInitializer(long localGuid, int maxFrameLength, CodecHelper codecHelper,
+                                       NetEventManager netEventManager) {
         this.localGuid = localGuid;
         this.maxFrameLength = maxFrameLength;
         this.netEventManager = netEventManager;

@@ -19,6 +19,7 @@ package com.wjybxx.fastjgame.module;
 import com.google.inject.AbstractModule;
 import com.google.inject.Singleton;
 import com.wjybxx.fastjgame.eventloop.NetEventLoopManager;
+import com.wjybxx.fastjgame.manager.NetManagerWrapper;
 import com.wjybxx.fastjgame.manager.*;
 
 /**

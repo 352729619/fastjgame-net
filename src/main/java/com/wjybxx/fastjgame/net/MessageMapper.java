@@ -16,6 +16,7 @@
 
 package com.wjybxx.fastjgame.net;
 
+import com.wjybxx.fastjgame.utils.ConcurrentUtils;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.Object2IntMap;
@@ -41,20 +42,16 @@ public final class MessageMapper {
     /**
      * 消息类->消息id的映射
      */
-    private final Object2IntMap<Class<?>> messageClazz2IdMap = new Object2IntOpenHashMap<>();
+    private final Object2IntMap<Class<?>> messageClazz2IdMap;
 
     /**
      * 消息id->消息类的映射
      */
-    private final Int2ObjectMap<Class<?>> messageId2ClazzMap = new Int2ObjectOpenHashMap<>();
+    private final Int2ObjectMap<Class<?>> messageId2ClazzMap;
 
-    public MessageMapper(Object2IntMap<Class<?>> mapper){
-        // 构造方法对final域的写入操作，以及对通过final域可达的初始变量的写入操作都不会被重排序
-        // 不确定的可以查看java并发实战程序清单: 16 - 8
-        for (Object2IntMap.Entry<Class<?>> entry:mapper.object2IntEntrySet()){
-            messageClazz2IdMap.put(entry.getKey(),entry.getIntValue());
-            messageId2ClazzMap.put(entry.getIntValue(),entry.getKey());
-        }
+    private MessageMapper(Object2IntMap<Class<?>> messageClazz2IdMap, Int2ObjectMap<Class<?>> messageId2ClazzMap) {
+        this.messageClazz2IdMap = messageClazz2IdMap;
+        this.messageId2ClazzMap = messageId2ClazzMap;
     }
 
     /**
@@ -91,5 +88,28 @@ public final class MessageMapper {
      */
     public final Object2IntMap<Class<?>> getMessageClazz2IdMap(){
         return Object2IntMaps.unmodifiable(messageClazz2IdMap);
+    }
+
+    public static MessageMapper newInstance(MessageMappingStrategy mappingStrategy) {
+        try {
+            Object2IntMap<Class<?>> mapping = mappingStrategy.mapping();
+
+            Object2IntMap<Class<?>> messageClazz2IdMap = new Object2IntOpenHashMap<>();
+            Int2ObjectMap<Class<?>> messageId2ClazzMap = new Int2ObjectOpenHashMap<>();
+
+            for (Object2IntMap.Entry<Class<?>> entry:mapping.object2IntEntrySet()){
+                Class<?> existClazz = messageId2ClazzMap.get(entry.getIntValue());
+                if (null != existClazz) {
+                    throw new IllegalArgumentException(entry.getKey().getCanonicalName() +
+                            " messageId " + entry.getIntValue() + " is equals to " + existClazz.getCanonicalName());
+                }
+                messageClazz2IdMap.put(entry.getKey(),entry.getIntValue());
+                messageId2ClazzMap.put(entry.getIntValue(),entry.getKey());
+            }
+            return new MessageMapper(messageClazz2IdMap, messageId2ClazzMap);
+        } catch (Exception e) {
+            ConcurrentUtils.rethrow(e);
+            return null;
+        }
     }
 }

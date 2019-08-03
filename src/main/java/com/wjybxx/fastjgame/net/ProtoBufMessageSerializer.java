@@ -41,7 +41,7 @@ public class ProtoBufMessageSerializer implements MessageSerializer {
     public void init(MessageMapper messageMapper) throws Exception{
         for (Class<?> messageClazz:messageMapper.getAllMessageClasses()){
             Parser<?> parser= ReflectionUtils.findParser(messageClazz);
-            parserMap.put(messageClazz,parser);
+            parserMap.put(messageClazz, parser);
         }
     }
 

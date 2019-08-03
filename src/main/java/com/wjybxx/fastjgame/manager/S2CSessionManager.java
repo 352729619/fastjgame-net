@@ -72,7 +72,7 @@ public class S2CSessionManager {
 
     private static final Logger logger = LoggerFactory.getLogger(S2CSessionManager.class);
 
-    private final NetManagerWrapper managerWrapper;
+    private NetManagerWrapper managerWrapper;
     private final NetTimeManager netTimeManager;
     private final NetConfigManager netConfigManager;
     private final TokenManager tokenManager;
@@ -82,9 +82,9 @@ public class S2CSessionManager {
     private final Long2ObjectMap<UserInfo> userInfoMap = new Long2ObjectOpenHashMap<>();
 
     @Inject
-    public S2CSessionManager(NetManagerWrapper managerWrapper, NetTimeManager netTimeManager, NetConfigManager netConfigManager,
-                             NetTimerManager netTimerManager, TokenManager tokenManager, AcceptManager acceptManager) {
-        this.managerWrapper = managerWrapper;
+    public S2CSessionManager(NetTimeManager netTimeManager, NetConfigManager netConfigManager,
+                             NetTimerManager netTimerManager, TokenManager tokenManager,
+                             AcceptManager acceptManager) {
         this.netTimeManager = netTimeManager;
         this.netConfigManager = netConfigManager;
         this.tokenManager = tokenManager;
@@ -94,6 +94,10 @@ public class S2CSessionManager {
         // 定时检查会话超时的timer(1/3个周期检测一次)
         Timer checkTimeOutTimer = Timer.newInfiniteTimer(netConfigManager.sessionTimeout()/3 * 1000,this::checkSessionTimeout);
         netTimerManager.addTimer(checkTimeOutTimer);
+    }
+
+    public void setManagerWrapper(NetManagerWrapper managerWrapper) {
+        this.managerWrapper = managerWrapper;
     }
 
     /**
@@ -161,8 +165,8 @@ public class S2CSessionManager {
      */
     public void send(long localGuid, long clientGuid, @Nonnull Object message){
         ifSessionOk(localGuid, clientGuid, sessionWrapper -> {
-            OneWayMessage logicMessage = new OneWayMessage(sessionWrapper.nextSequence(), message);
-            sessionWrapper.writeAndFlush(logicMessage);
+            OneWayMessage oneWayMessage = new OneWayMessage(sessionWrapper.nextSequence(), message);
+            sessionWrapper.writeAndFlush(oneWayMessage);
         });
     }
 
@@ -575,7 +579,8 @@ public class S2CSessionManager {
                     requestMessageTO.getRequestGuid(), sessionWrapper.session);
             ConcurrentUtils.tryCommit(userInfo.netContext.localEventLoop(), () -> {
                 try {
-                    userInfo.messageHandler.onRpcRequest(sessionWrapper.session, requestMessageTO.getRequest(), rpcResponseChannel);
+                    userInfo.messageHandler.onRpcRequest(sessionWrapper.session, requestMessageTO.getRequest(),
+                            rpcResponseChannel);
                 } catch (Exception e){
                     ConcurrentUtils.rethrow(e);
                 }

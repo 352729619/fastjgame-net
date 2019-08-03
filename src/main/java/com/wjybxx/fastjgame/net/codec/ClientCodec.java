@@ -124,7 +124,7 @@ public class ClientCodec extends BaseCodec {
 
         AckPingPongMessageTO ackPingPongMessage = readAckPingPongMessage(msg);
         AckPingPongEventParam ackPongParam = new AckPingPongEventParam(ctx.channel(), localGuid, serverGuid, ackPingPongMessage);
-        netEventManager.publishEvent(NetEventType.ACK_PONG,ackPongParam);
+        netEventManager.publishEvent(NetEventType.ACK_PONG, ackPongParam);
     }
 
     /**

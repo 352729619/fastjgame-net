@@ -14,17 +14,11 @@
  * limitations under the License.
  */
 
-package com.wjybxx.fastjgame.net;
-
-import com.wjybxx.fastjgame.concurrent.Promise;
-
 /**
- * RpcPromise
- *
- * @author houlei
+ * 临时测试用的
+ * @author wjybxx
  * @version 1.0
- * date - 2019/8/3
+ * date - 2019/8/4
+ * github - https://github.com/hl845740757
  */
-public interface RpcPromise extends RpcFuture, Promise<RpcResponse> {
-
-}
+package com.wjybxx.fastjgame.protobuffer;

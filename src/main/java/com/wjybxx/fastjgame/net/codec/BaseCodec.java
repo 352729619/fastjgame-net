@@ -103,7 +103,7 @@ public abstract class BaseCodec extends ChannelDuplexHandler {
      */
     final void writeConnectRequest(ChannelHandlerContext ctx, ConnectRequestTO msgTO, ChannelPromise promise) {
         byte[] encryptedToken=msgTO.getTokenBytes();
-        int contentLength = 8 + 8 + 4 + 8 + encryptedToken.length;
+        int contentLength = 8 + 4 + 8 + encryptedToken.length;
         ByteBuf byteBuf = newInitializedByteBuf(ctx, contentLength, NetPackageType.CONNECT_REQUEST);
 
         byteBuf.writeLong(msgTO.getClientGuid());
@@ -164,7 +164,7 @@ public abstract class BaseCodec extends ChannelDuplexHandler {
         int messageId = messageMapper.getMessageId(body.getClass());
         byte[] messageBytes= messageSerializer.serialize(body);
 
-        int contentLength = 8 + 8 + 8 + 4 + messageBytes.length;
+        int contentLength = 8 + 8 + 1 + 8 + 4 + messageBytes.length;
         ByteBuf byteBuf = newInitializedByteBuf(ctx, contentLength, NetPackageType.RPC_REQUEST);
         // 捎带确认消息
         byteBuf.writeLong(messageTO.getAck());
@@ -269,7 +269,7 @@ public abstract class BaseCodec extends ChannelDuplexHandler {
         byte[] messageBytes= messageSerializer.serialize(message);
 
         int contentLength = 8 + 8 + 4 + messageBytes.length;
-        ByteBuf byteBuf = newInitializedByteBuf(ctx, contentLength, NetPackageType.RPC_RESPONSE);
+        ByteBuf byteBuf = newInitializedByteBuf(ctx, contentLength, NetPackageType.ONE_WAY_MESSAGE);
         // 捎带确认
         byteBuf.writeLong(msgTO.getAck());
         byteBuf.writeLong(msgTO.getSequence());
@@ -323,7 +323,7 @@ public abstract class BaseCodec extends ChannelDuplexHandler {
 
         byteBuf.writeLong(msgTO.getAck());
         byteBuf.writeLong(msgTO.getSequence());
-        appendSumAndWrite(ctx,byteBuf,promise);
+        appendSumAndWrite(ctx, byteBuf, promise);
     }
 
     /**

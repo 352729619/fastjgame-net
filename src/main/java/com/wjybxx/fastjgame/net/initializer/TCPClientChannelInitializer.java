@@ -44,7 +44,7 @@ public class TCPClientChannelInitializer extends ChannelInitializer<SocketChanne
     private final NetEventManager netEventManager;
     private final CodecHelper codecHelper;
 
-    public TCPClientChannelInitializer(long localGuid, long serverGuid, int maxFrameLength, NetEventManager netEventManager, CodecHelper codecHelper) {
+    public TCPClientChannelInitializer(long localGuid, long serverGuid, int maxFrameLength, CodecHelper codecHelper, NetEventManager netEventManager) {
         this.localGuid = localGuid;
         this.serverGuid = serverGuid;
         this.maxFrameLength = maxFrameLength;

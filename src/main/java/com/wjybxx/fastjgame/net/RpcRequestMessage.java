@@ -45,7 +45,7 @@ public class RpcRequestMessage extends NetMessage{
 
 	@Override
 	public RpcRequestMessageTO build(long ack) {
-		return new RpcRequestMessageTO(ack, getSequence(), sync, requestGuid, request);
+		return new RpcRequestMessageTO(ack, getSequence(), sync, requestGuid,  request);
 	}
 
 	public boolean isSync() {
