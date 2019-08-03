@@ -22,7 +22,7 @@ public class NetEventLoopManager {
 		this.eventLoop = eventLoop;
 	}
 
-	public NetEventLoopImp getEventLoop() {
+	public NetEventLoopImp eventLoop() {
 		return eventLoop;
 	}
 

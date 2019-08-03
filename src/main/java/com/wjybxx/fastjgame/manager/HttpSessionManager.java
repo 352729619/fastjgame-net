@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.wjybxx.fastjgame.manager.networld;
+package com.wjybxx.fastjgame.manager;
 
 import com.google.inject.Inject;
 import com.wjybxx.fastjgame.concurrent.EventLoop;
@@ -102,14 +102,24 @@ public class HttpSessionManager {
 		assert netEventLoopManager.inEventLoop();
 		FastCollectionsUtils.removeIfAndThen(userInfoMap,
 				(long k, UserInfo userInfo) -> userInfo.netContext.localEventLoop() == eventLoop,
-				(long k, UserInfo userInfo) -> {
-					closeUserSession(userInfo.sessionWrapperMap);
-				});
+				(long k, UserInfo userInfo) -> removeUserSession(userInfo));
 	}
 
-	private void closeUserSession(Map<Channel, SessionWrapper> sessionWrapperMap) {
+	/**
+	 * 删除某个会话的所有session
+	 * @param localGuid 用户id
+	 */
+	public void removeUserSession(long localGuid) {
+		UserInfo userInfo = userInfoMap.remove(localGuid);
+		if (null == userInfo){
+			return;
+		}
+		removeUserSession(userInfo);
+	}
+
+	private void removeUserSession(UserInfo userInfo) {
 		// 如果logicWorld持有了httpSession的引用，长时间没有完成响应的话，这里关闭可能导致一些错误
-		CollectionUtils.removeIfAndThen(sessionWrapperMap,
+		CollectionUtils.removeIfAndThen(userInfo.sessionWrapperMap,
 				(channel, sessionWrapper) -> true,
 				(channel, sessionWrapper) -> NetUtils.closeQuietly(channel));
 	}

@@ -38,8 +38,9 @@ public interface MessageHandler {
      * 处理该会话发来的Rpc请求
      * @param session 会话信息
      * @param request rpc请求
+     * @param responseChannel 返回结果的通道
      * @throws Exception error
      */
-    void onRpcRequest(Session session, Object request) throws Exception;
+    void onRpcRequest(Session session, Object request, RpcResponseChannel responseChannel) throws Exception;
 
 }

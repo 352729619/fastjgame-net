@@ -20,7 +20,6 @@ import com.google.inject.AbstractModule;
 import com.google.inject.Singleton;
 import com.wjybxx.fastjgame.eventloop.NetEventLoopManager;
 import com.wjybxx.fastjgame.manager.*;
-import com.wjybxx.fastjgame.manager.networld.*;
 
 /**
  * 网络模块需要的所有类

@@ -20,7 +20,7 @@ import com.wjybxx.fastjgame.net.HttpRequestEventParam;
 import com.wjybxx.fastjgame.net.HttpRequestTO;
 import com.wjybxx.fastjgame.net.NetEventType;
 import com.wjybxx.fastjgame.configwrapper.MapConfigWrapper;
-import com.wjybxx.fastjgame.manager.networld.NetEventManager;
+import com.wjybxx.fastjgame.manager.NetEventManager;
 import com.wjybxx.fastjgame.misc.HttpResponseHelper;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;

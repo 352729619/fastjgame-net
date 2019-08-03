@@ -14,9 +14,10 @@
  * limitations under the License.
  */
 
-package com.wjybxx.fastjgame.manager.networld;
+package com.wjybxx.fastjgame.manager;
 
 import com.google.inject.Inject;
+import com.wjybxx.fastjgame.eventloop.NetEventLoopManager;
 import com.wjybxx.fastjgame.net.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,12 +40,15 @@ public class NetEventManager {
 	private final S2CSessionManager s2CSessionManager;
 	private final C2SSessionManager c2SSessionManager;
 	private final HttpSessionManager httpSessionManager;
+	private final NetEventLoopManager netEventLoopManager;
 
 	@Inject
-	public NetEventManager(S2CSessionManager s2CSessionManager, C2SSessionManager c2SSessionManager, HttpSessionManager httpSessionManager) {
+	public NetEventManager(S2CSessionManager s2CSessionManager, C2SSessionManager c2SSessionManager,
+						   HttpSessionManager httpSessionManager, NetEventLoopManager netEventLoopManager) {
 		this.s2CSessionManager = s2CSessionManager;
 		this.c2SSessionManager = c2SSessionManager;
 		this.httpSessionManager = httpSessionManager;
+		this.netEventLoopManager = netEventLoopManager;
 	}
 
 	/**
@@ -53,13 +57,9 @@ public class NetEventManager {
 	 * @param eventParam 事件参数。类型决定参数
 	 */
 	public void publishEvent(NetEventType netEventType, NetEventParam eventParam){
-		// 一定不在gameEventLoop线程中
-		gameEventLoopManager.eventLoop().execute(() -> {
-			try {
-				onNetEvent(netEventType, eventParam);
-			} catch (Exception e) {
-				logger.warn("onNetEvent caught exception, eventType = " + netEventType);
-			}
+		// 一定不在NetEventLoop中，提交的netEventLoop线程
+		netEventLoopManager.eventLoop().execute(() -> {
+			onNetEvent(netEventType, eventParam);
 		});
 	}
 

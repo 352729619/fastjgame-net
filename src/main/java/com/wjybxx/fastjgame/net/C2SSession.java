@@ -195,6 +195,16 @@ public class C2SSession implements IC2SSession {
         return rpcResponsePromise.tryGet();
     }
 
+    void sendRpcResponse(boolean sync, long requestGuid, RpcResponse rpcResponse) {
+        if (!isActive()) {
+            logger.info("session is already closed, send rpcResponse failed.");
+            return;
+        }
+        netContext.netEventLoop().execute(() -> {
+            netManagerWrapper.getC2SSessionManager().sendRpcResponse(localGuid(), remoteGuid(), sync, requestGuid, rpcResponse);
+        });
+    }
+
     @Override
     public boolean isActive() {
         return stateHolder.get() == ST_ACTIVE;

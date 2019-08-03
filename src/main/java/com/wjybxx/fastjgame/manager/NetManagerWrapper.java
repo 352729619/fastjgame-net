@@ -2,7 +2,6 @@ package com.wjybxx.fastjgame.manager;
 
 import com.google.inject.Inject;
 import com.wjybxx.fastjgame.eventloop.NetEventLoopManager;
-import com.wjybxx.fastjgame.manager.networld.*;
 
 /**
  * NetEventLoop不是依赖注入的，一个个获取实例实在有点麻烦...

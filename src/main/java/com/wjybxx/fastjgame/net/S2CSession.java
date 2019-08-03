@@ -93,4 +93,7 @@ public class S2CSession implements IS2CSession {
                 '}';
     }
 
+    void sendRpcResponse(boolean sync, long requestGuid, RpcResponse rpcResponse) {
+
+    }
 }

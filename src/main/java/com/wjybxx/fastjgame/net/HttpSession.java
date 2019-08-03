@@ -16,7 +16,7 @@
 
 package com.wjybxx.fastjgame.net;
 
-import com.wjybxx.fastjgame.manager.networld.HttpSessionManager;
+import com.wjybxx.fastjgame.manager.HttpSessionManager;
 import com.wjybxx.fastjgame.misc.HostAndPort;
 import com.wjybxx.fastjgame.misc.HttpResponseBuilder;
 import com.wjybxx.fastjgame.misc.NetContext;

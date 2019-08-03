@@ -27,12 +27,25 @@ public class NetContextImp implements NetContext {
 	private final NetEventLoop netEventLoop;
 	private final NetManagerWrapper managerWrapper;
 
-	public NetContextImp(long localGuid, RoleType localRole, EventLoop localEventLoop, NetEventLoop netEventLoop, NetManagerWrapper managerWrapper) {
+	private NetContextImp(long localGuid, RoleType localRole, EventLoop localEventLoop,
+						 NetEventLoop netEventLoop, NetManagerWrapper managerWrapper) {
 		this.localGuid = localGuid;
 		this.localRole = localRole;
 		this.localEventLoop = localEventLoop;
 		this.netEventLoop = netEventLoop;
 		this.managerWrapper = managerWrapper;
+	}
+
+	/**
+	 * 避免构造的时候发布自己
+	 */
+	public static NetContext newInstance(long localGuid, RoleType localRole, EventLoop localEventLoop,
+										 NetEventLoop netEventLoop, NetManagerWrapper managerWrapper) {
+		NetContextImp netContextImp = new NetContextImp(localGuid, localRole, localEventLoop, netEventLoop, managerWrapper);
+		localEventLoop.terminationFuture().addListener(future -> {
+			netContextImp.onUserEventLoopShutdown();
+		}, netEventLoop);
+		return netContextImp;
 	}
 
 	@Override
@@ -57,7 +70,23 @@ public class NetContextImp implements NetContext {
 
 	@Override
 	public void unregister() {
-		// TODO 从可能的地方删除自己
+		// 从可能的地方删除自己
+		netEventLoop.execute(() -> {
+			managerWrapper.getS2CSessionManager().removeUserSession(localGuid, "unregister");
+			managerWrapper.getC2SSessionManager().removeUserSession(localGuid, "unregister");
+			managerWrapper.getHttpSessionManager().removeUserSession(localGuid);
+		});
+	}
+
+	/**
+	 * 当用户所在的EventLoop关闭了
+	 */
+	private void onUserEventLoopShutdown() {
+		assert netEventLoop.inEventLoop();
+
+		managerWrapper.getS2CSessionManager().onUserEventLoopTerminal(localEventLoop);
+		managerWrapper.getC2SSessionManager().onUserEventLoopTerminal(localEventLoop);
+		managerWrapper.getHttpSessionManager().onUserEventLoopTerminal(localEventLoop);
 	}
 
 	@Override
@@ -83,6 +112,14 @@ public class NetContextImp implements NetContext {
 
 	@Override
 	public ListenableFuture<HostAndPort> bindRange(boolean outer, PortRange portRange, ChannelInitializerSupplier initializerSupplier, HttpRequestHandler httpRequestHandler) {
-		return null;
+		return netEventLoop.submit(() -> {
+			try {
+				return managerWrapper.getHttpSessionManager().bindRange(this, outer, portRange,
+						initializerSupplier, httpRequestHandler);
+			} catch (Exception e){
+				ConcurrentUtils.rethrow(e);
+				return null;
+			}
+		});
 	}
 }

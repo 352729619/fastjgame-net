@@ -37,17 +37,20 @@ import java.nio.charset.StandardCharsets;
 public class NetConfigManager  {
 
     private final ConfigWrapper configWrapper;
+
     /**
      * 本机ip
      */
     private final String localIp;
+
     /**
      * 公网ip(好像不是很好处理，走配置倒是可以，就是有点不智能)
      * 作为备选方案
      */
     private final String outerIp;
-    /**帧率 */
-    private final int framesPerSecond;
+
+    /** 帧间隔 */
+    private final int frameInterval;
 
     // 参数含义及单位见get方法或配置文件
     private final byte[] tokenKeyBytes;
@@ -71,6 +74,7 @@ public class NetConfigManager  {
 
     private final int serverMaxCacheNum;
     private final int clientMaxCacheNum;
+    private final int flushThreshold;
 
     private final int httpRequestTimeout;
     private final int httpSessionTimeout;
@@ -78,29 +82,29 @@ public class NetConfigManager  {
     private final int rpcCallbackTimeoutMs;
     private final int syncRpcTimeoutMs;
 
-
     @Inject
     public NetConfigManager() throws IOException {
         configWrapper = ConfigLoader.loadConfig(NetConfigManager.class.getClassLoader(), NetConstants.NET_CONFIG_NAME);
-        localIp= configWrapper.getAsString("localIp", NetUtils.getLocalIp());
-        outerIp= configWrapper.getAsString("outerIp", NetUtils.getOuterIp());
+        localIp = configWrapper.getAsString("localIp", NetUtils.getLocalIp());
+        outerIp = configWrapper.getAsString("outerIp", NetUtils.getOuterIp());
 
-        framesPerSecond = configWrapper.getAsInt("framesPerSecond");
+        frameInterval = configWrapper.getAsInt("frameInterval");
 
         tokenKeyBytes = configWrapper.getAsString("tokenKey").getBytes(StandardCharsets.UTF_8);
         tokenForbiddenTimeout = configWrapper.getAsInt("tokenForbiddenTimeout",3600);
 
-        maxIoThreadNum= configWrapper.getAsInt("maxIoThreadNum");
-        maxFrameLength= configWrapper.getAsInt("maxFrameLength");
-        sndBufferAsServer= configWrapper.getAsInt("sndBufferAsServer");
-        revBufferAsServer= configWrapper.getAsInt("revBufferAsServer");
-        sndBufferAsClient= configWrapper.getAsInt("sndBufferAsClient");
-        revBufferAsClient= configWrapper.getAsInt("revBufferAsClient");
-        ringBufferSize= configWrapper.getAsInt("ringBufferSize");
+        maxIoThreadNum = configWrapper.getAsInt("maxIoThreadNum");
+        maxFrameLength = configWrapper.getAsInt("maxFrameLength");
+        sndBufferAsServer = configWrapper.getAsInt("sndBufferAsServer");
+        revBufferAsServer = configWrapper.getAsInt("revBufferAsServer");
+        sndBufferAsClient = configWrapper.getAsInt("sndBufferAsClient");
+        revBufferAsClient = configWrapper.getAsInt("revBufferAsClient");
+        ringBufferSize = configWrapper.getAsInt("ringBufferSize");
         globalExecutorThreadNum = configWrapper.getAsInt("globalExecutorThreadNum");
 
-        serverMaxCacheNum= configWrapper.getAsInt("serverMaxCacheNum");
-        clientMaxCacheNum= configWrapper.getAsInt("clientMaxCacheNum");
+        serverMaxCacheNum = configWrapper.getAsInt("serverMaxCacheNum");
+        clientMaxCacheNum = configWrapper.getAsInt("clientMaxCacheNum");
+        flushThreshold = configWrapper.getAsInt("flushThreshold", 20);
 
         connectMaxTryTimes = configWrapper.getAsInt("connectMaxTryTimes");
         connectTimeout = configWrapper.getAsInt("connectTimeout");
@@ -110,15 +114,15 @@ public class NetConfigManager  {
         sessionTimeout = configWrapper.getAsInt("sessionTimeout");
 
 
-        httpRequestTimeout =configWrapper.getAsInt("httpRequestTimeout");
-        httpSessionTimeout =configWrapper.getAsInt("httpSessionTimeout");
+        httpRequestTimeout = configWrapper.getAsInt("httpRequestTimeout");
+        httpSessionTimeout = configWrapper.getAsInt("httpSessionTimeout");
 
         rpcCallbackTimeoutMs = configWrapper.getAsInt("rpcCallbackTimeoutMs");
         syncRpcTimeoutMs = configWrapper.getAsInt("syncRpcTimeoutMs");
     }
 
-    public int framesPerSecond() {
-        return framesPerSecond;
+    public int frameInterval() {
+        return frameInterval;
     }
 
     /**
@@ -286,5 +290,10 @@ public class NetConfigManager  {
     /** 同步rpc调用超时时间(毫秒) */
     public int syncRpcTimeoutMs() {
         return syncRpcTimeoutMs;
+    }
+
+    /** 当缓存的消息数到达该值时，立即清空缓冲区 */
+    public int flushThreshold() {
+        return flushThreshold;
     }
 }

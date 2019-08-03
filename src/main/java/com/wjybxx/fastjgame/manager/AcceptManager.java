@@ -17,7 +17,6 @@
 package com.wjybxx.fastjgame.manager;
 
 import com.google.inject.Inject;
-import com.wjybxx.fastjgame.manager.networld.NettyThreadManager;
 import com.wjybxx.fastjgame.misc.HostAndPort;
 import com.wjybxx.fastjgame.misc.PortRange;
 import com.wjybxx.fastjgame.utils.NetUtils;

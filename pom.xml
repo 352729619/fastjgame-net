@@ -45,7 +45,8 @@
     </build>
 
     <dependencies>
-        <!-- 基础工具包 -->
+
+        <!-- 基础工具包，github地址：https://github.com/hl845740757/fastjgame-utils.git -->
         <dependency>
             <groupId>com.wjybxx.fastjgame</groupId>
             <artifactId>game-utils</artifactId>

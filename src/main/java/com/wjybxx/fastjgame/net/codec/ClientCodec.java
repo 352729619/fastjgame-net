@@ -16,7 +16,7 @@
 
 package com.wjybxx.fastjgame.net.codec;
 
-import com.wjybxx.fastjgame.manager.networld.NetEventManager;
+import com.wjybxx.fastjgame.manager.NetEventManager;
 import com.wjybxx.fastjgame.net.*;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;

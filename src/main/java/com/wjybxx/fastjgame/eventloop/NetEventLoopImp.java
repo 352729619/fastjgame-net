@@ -3,14 +3,7 @@ package com.wjybxx.fastjgame.eventloop;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
 import com.wjybxx.fastjgame.concurrent.*;
-import com.wjybxx.fastjgame.manager.HttpClientManager;
-import com.wjybxx.fastjgame.manager.NetManagerWrapper;
-import com.wjybxx.fastjgame.manager.NetTimeManager;
-import com.wjybxx.fastjgame.manager.NetTimerManager;
-import com.wjybxx.fastjgame.manager.networld.C2SSessionManager;
-import com.wjybxx.fastjgame.manager.networld.HttpSessionManager;
-import com.wjybxx.fastjgame.manager.networld.NettyThreadManager;
-import com.wjybxx.fastjgame.manager.networld.S2CSessionManager;
+import com.wjybxx.fastjgame.manager.*;
 import com.wjybxx.fastjgame.misc.NetContext;
 import com.wjybxx.fastjgame.module.NetModule;
 import com.wjybxx.fastjgame.net.*;
@@ -32,6 +25,7 @@ import java.util.concurrent.locks.LockSupport;
 public class NetEventLoopImp extends SingleThreadEventLoop implements NetEventLoop{
 
 	private final NetManagerWrapper managerWrapper;
+	private final NetConfigManager netConfigManager;
 	private final NettyThreadManager nettyThreadManager;
 	private final HttpClientManager httpClientManager;
 	private final S2CSessionManager s2CSessionManager;
@@ -54,6 +48,7 @@ public class NetEventLoopImp extends SingleThreadEventLoop implements NetEventLo
 		injector.getInstance(NetEventLoopManager.class).init(this);
 		// 创建其它管理器
 		managerWrapper = injector.getInstance(NetManagerWrapper.class);
+		netConfigManager = managerWrapper.getNetConfigManager();
 		nettyThreadManager = managerWrapper.getNettyThreadManager();
 		httpClientManager = managerWrapper.getHttpClientManager();
 		s2CSessionManager = managerWrapper.getS2CSessionManager();
@@ -92,16 +87,14 @@ public class NetEventLoopImp extends SingleThreadEventLoop implements NetEventLo
 		if (localEventLoop instanceof NetEventLoop) {
 			throw new IllegalArgumentException("Unexpected invoke.");
 		}
-		return submit(() -> new NetContextImp(localGuid, localRole, localEventLoop, this, managerWrapper));
+		return submit(() -> NetContextImp.newInstance(localGuid, localRole, localEventLoop, this, managerWrapper));
 	}
 
 	@Override
 	protected void init() throws Exception {
 		super.init();
-
 		nettyThreadManager.start();
 		httpClientManager.start();
-
 	}
 
 	@Override
@@ -116,8 +109,9 @@ public class NetEventLoopImp extends SingleThreadEventLoop implements NetEventLo
 			if (confirmShutdown()) {
 				break;
 			}
-			// 每次循环休息一毫秒，避免CPU占有率过高
-			LockSupport.parkNanos(TimeUtils.NANO_PER_MILLISECOND);
+
+			// 每次循环休息一下下，避免CPU占有率过高
+			LockSupport.parkNanos(TimeUtils.NANO_PER_MILLISECOND * netConfigManager.frameInterval());
 		}
 	}
 

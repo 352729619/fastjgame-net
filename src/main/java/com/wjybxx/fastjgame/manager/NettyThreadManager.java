@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.wjybxx.fastjgame.manager.networld;
+package com.wjybxx.fastjgame.manager;
 
 import com.google.inject.Inject;
 import com.wjybxx.fastjgame.concurrent.DefaultThreadFactory;

@@ -21,4 +21,4 @@
  * date - 2019/8/1
  * github - https://github.com/hl845740757
  */
-package com.wjybxx.fastjgame.manager.networld;
+package com.wjybxx.fastjgame.manager;
