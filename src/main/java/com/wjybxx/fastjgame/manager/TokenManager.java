@@ -41,7 +41,7 @@ import java.util.Objects;
 @NotThreadSafe
 public class TokenManager {
 
-    private static final Logger logger= LoggerFactory.getLogger(TokenManager.class);
+    private static final Logger logger = LoggerFactory.getLogger(TokenManager.class);
     /**
      * 初始验证/登录次数
      */
@@ -94,13 +94,13 @@ public class TokenManager {
     /**
      * 分配一个在指定服务器登录用的token
      * @param clientGuid 客户端的guid，为哪个客户端创建的
-     * @param clientRoleType 客户端的角色类型
+     * @param clientRole 客户端的角色类型
      * @param serverGuid 服务器的guid，要登录的服务器guid
-     * @param serverRoleType 服务器的角色类型
+     * @param serverRole 服务器的角色类型
      * @return Token
      */
-    public Token newLoginToken(long clientGuid, RoleType clientRoleType, long serverGuid, RoleType serverRoleType){
-        return new Token(clientGuid, clientRoleType, serverGuid, serverRoleType,
+    public Token newLoginToken(long clientGuid, RoleType clientRole, long serverGuid, RoleType serverRole){
+        return new Token(clientGuid, clientRole, serverGuid, serverRole,
                 INIT_VERIFIED_TIMES, netTimeManager.getSystemSecTime());
     }
 
@@ -108,8 +108,8 @@ public class TokenManager {
      * @see #newLoginToken(long, RoleType, long, RoleType)
      * @return tokenBytes
      */
-    public byte[] newEncryptedLoginToken(long clientGuid, RoleType clientRoleType, long serverGuid, RoleType serverRoleType) {
-        return encryptToken(newLoginToken(clientGuid, clientRoleType, serverGuid, serverRoleType));
+    public byte[] newEncryptedLoginToken(long clientGuid, RoleType clientRole, long serverGuid, RoleType serverRole) {
+        return encryptToken(newLoginToken(clientGuid, clientRole, serverGuid, serverRole));
     }
 
     /**
@@ -231,10 +231,10 @@ public class TokenManager {
         RoleType clientRolType = RoleType.forNumber(byteBuf.readInt());
 
         long serverGuid = byteBuf.readLong();
-        RoleType serverRoleType = RoleType.forNumber(byteBuf.readInt());
+        RoleType serverRole = RoleType.forNumber(byteBuf.readInt());
 
         int verifiedTimes = byteBuf.readInt();
         int createSecTime = byteBuf.readInt();
-        return new Token(clientGuid, clientRolType, serverGuid, serverRoleType, verifiedTimes, createSecTime);
+        return new Token(clientGuid, clientRolType, serverGuid, serverRole, verifiedTimes, createSecTime);
     }
 }

@@ -21,7 +21,6 @@ import com.wjybxx.fastjgame.configwrapper.ConfigWrapper;
 import com.wjybxx.fastjgame.constants.NetConstants;
 import com.wjybxx.fastjgame.utils.ConfigLoader;
 import com.wjybxx.fastjgame.utils.NetUtils;
-import com.wjybxx.fastjgame.world.NetWorldConfig;
 
 import javax.annotation.concurrent.ThreadSafe;
 import java.io.IOException;
@@ -35,7 +34,7 @@ import java.nio.charset.StandardCharsets;
  * github - https://github.com/hl845740757
  */
 @ThreadSafe
-public class NetConfigManager implements NetWorldConfig {
+public class NetConfigManager  {
 
     private final ConfigWrapper configWrapper;
     /**
@@ -118,7 +117,6 @@ public class NetConfigManager implements NetWorldConfig {
         syncRpcTimeoutMs = configWrapper.getAsInt("syncRpcTimeoutMs");
     }
 
-    @Override
     public int framesPerSecond() {
         return framesPerSecond;
     }
@@ -126,7 +124,6 @@ public class NetConfigManager implements NetWorldConfig {
     /**
      * 获取原始的config保证其，以获取不在本类中定义的属性
      */
-    @Override
     public ConfigWrapper properties() {
         return configWrapper;
     }

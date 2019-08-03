@@ -1,7 +1,5 @@
 package com.wjybxx.fastjgame.net;
 
-import java.util.function.LongSupplier;
-
 /**
  * 未发送的rpc结果。
  *
@@ -21,7 +19,7 @@ public class UnsentRpcResponse implements UnsentMessage{
 	}
 
 	@Override
-	public NetMessage build(long sequence, LongSupplier rpcRequestGuidSupplier) {
+	public NetMessage build(long sequence) {
 		return new RpcResponseMessage(sequence, requestGuid, rpcResponse);
 	}
 }

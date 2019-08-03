@@ -17,6 +17,10 @@
 package com.wjybxx.fastjgame.net;
 
 
+import com.wjybxx.fastjgame.manager.NetConfigManager;
+import com.wjybxx.fastjgame.misc.HostAndPort;
+import com.wjybxx.fastjgame.misc.NetContext;
+
 /**
  * 服务器存储的与客户端建立的会话信息。
  * 只暴露一部分关键信息。
@@ -25,13 +29,12 @@ package com.wjybxx.fastjgame.net;
  * date - 2019/4/27 10:18
  * github - https://github.com/hl845740757
  */
-public class S2CSession implements Session {
+public class S2CSession implements IS2CSession {
 
-    /** 会话关联的本地角色guid */
-    private final long localGuid;
-    /** 会话关联的本地角色类型 */
-    private final RoleType localRole;
+    private final NetContext netContext;
+    private final NetConfigManager netConfigManager;
 
+    private final HostAndPort localAddress;
     /**
      * 客户端唯一id，也就是sessionId
      */
@@ -41,21 +44,27 @@ public class S2CSession implements Session {
      */
     private final RoleType clientType;
 
-    public S2CSession(long localGuid, RoleType localRole, long clientGuid, RoleType clientType) {
-        this.localGuid = localGuid;
-        this.localRole = localRole;
+    public S2CSession(NetContext netContext, NetConfigManager netConfigManager, HostAndPort localAddress, long clientGuid, RoleType clientType) {
+        this.netContext = netContext;
+        this.netConfigManager = netConfigManager;
+        this.localAddress = localAddress;
         this.clientGuid = clientGuid;
         this.clientType = clientType;
     }
 
     @Override
     public long localGuid() {
-        return localGuid;
+        return netContext.localGuid();
     }
 
     @Override
     public RoleType localRole() {
-        return localRole;
+        return netContext.localRole();
+    }
+
+    @Override
+    public HostAndPort localAddress() {
+        return localAddress;
     }
 
     @Override

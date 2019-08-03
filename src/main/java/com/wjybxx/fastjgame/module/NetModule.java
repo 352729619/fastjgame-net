@@ -18,12 +18,9 @@ package com.wjybxx.fastjgame.module;
 
 import com.google.inject.AbstractModule;
 import com.google.inject.Singleton;
-import com.wjybxx.fastjgame.manager.AcceptManager;
-import com.wjybxx.fastjgame.manager.NetConfigManager;
-import com.wjybxx.fastjgame.manager.TokenManager;
+import com.wjybxx.fastjgame.eventloop.NetEventLoopManager;
+import com.wjybxx.fastjgame.manager.*;
 import com.wjybxx.fastjgame.manager.networld.*;
-import com.wjybxx.fastjgame.world.NetWorld;
-import com.wjybxx.fastjgame.world.NetWorldImp;
 
 /**
  * 网络模块需要的所有类
@@ -36,19 +33,25 @@ public class NetModule extends AbstractModule {
 
 	@Override
 	protected void configure() {
-		// netWorld依赖的管理器
+		bind(NetEventLoopManager.class).in(Singleton.class);
+		bind(NetConfigManager.class).in(Singleton.class);
+
 		bind(C2SSessionManager.class).in(Singleton.class);
 		bind(S2CSessionManager.class).in(Singleton.class);
 		bind(HttpSessionManager.class).in(Singleton.class);
 		bind(NetEventManager.class).in(Singleton.class);
+
 		bind(NettyThreadManager.class).in(Singleton.class);
+		bind(HttpClientManager.class).in(Singleton.class);
+
 		bind(AcceptManager.class).in(Singleton.class);
 		bind(TokenManager.class).in(Singleton.class);
 
-		// 网络层配置信息
-		bind(NetConfigManager.class).in(Singleton.class);
+		bind(NetTimeManager.class).in(Singleton.class);
+		bind(NetTimerManager.class).in(Singleton.class);
 
 		// 管理logicWorld信息
 		bind(LogicWorldManager.class).in(Singleton.class);
+		bind(NetManagerWrapper.class).in(Singleton.class);
 	}
 }

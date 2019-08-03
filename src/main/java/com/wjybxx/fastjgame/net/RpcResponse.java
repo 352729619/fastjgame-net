@@ -28,6 +28,11 @@ import javax.annotation.concurrent.Immutable;
  */
 @Immutable
 public final class RpcResponse {
+
+	public static final RpcResponse TIMEOUT = newFailResponse(RpcResultCode.TIMEOUT);
+	public static final RpcResponse SESSION_CLOSED = newFailResponse(RpcResultCode.SESSION_CLOSED);
+	public static final RpcResponse CANCELLED = newFailResponse(RpcResultCode.CANCELLED);
+
 	/**
 	 * 结果标识
 	 * 注意：{@link RpcResultCode#hasBody(RpcResultCode)}
@@ -59,6 +64,10 @@ public final class RpcResponse {
 
 	public boolean isSuccess() {
 		return RpcResultCode.isSuccess(resultCode);
+	}
+
+	public static RpcResponse newFailResponse(RpcResultCode resultCode) {
+		return new RpcResponse(resultCode, null);
 	}
 
 }

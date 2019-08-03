@@ -37,27 +37,32 @@ public enum RpcResultCode implements NumberEnum {
 	 */
 	SUCCESS(0),
 	/**
-	 * session不存在
+	 * 会话已关闭
 	 */
-	SESSION_NOT_EXIST(1),
+	SESSION_CLOSED(1),
+	/**
+	 * 用户取消了rpc调用
+	 */
+	CANCELLED(2),
 	/**
 	 * 请求超时
 	 */
-	TIMEOUT(2),
+	TIMEOUT(3),
 	/**
 	 * 出现异常(本地异常)
 	 * 这个比较特殊，其实有body，但是不序列化，{@link #hasBody(RpcResultCode)}返回的是false。
 	 * 如果需要查看异常，可以获取body。
 	 */
-	LOCAL_EXCEPTION(3),
+	LOCAL_EXCEPTION(4),
 	/**
 	 * 请求被禁止
 	 */
-	FORBID(4),
+	FORBID(5),
 	/**
 	 * 请求错误
 	 */
-	BAD_REQUEST(5),
+	BAD_REQUEST(6),
+
 	;
 
 	/** 唯一标识，不可随意修改 */

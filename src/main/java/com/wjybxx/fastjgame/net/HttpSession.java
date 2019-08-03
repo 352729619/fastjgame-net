@@ -16,10 +16,15 @@
 
 package com.wjybxx.fastjgame.net;
 
+import com.wjybxx.fastjgame.manager.networld.HttpSessionManager;
+import com.wjybxx.fastjgame.misc.HostAndPort;
 import com.wjybxx.fastjgame.misc.HttpResponseBuilder;
+import com.wjybxx.fastjgame.misc.NetContext;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.handler.codec.http.HttpResponse;
+
+import javax.annotation.Nonnull;
 
 /**
  * http会话信息
@@ -28,19 +33,37 @@ import io.netty.handler.codec.http.HttpResponse;
  * date - 2019/4/29 9:49
  * github - https://github.com/hl845740757
  */
-public final class HttpSession {
-    /**
-     * 是哪一个LogicWorld监听的端口
-     */
-    private final long logicWorldGuid;
+public final class HttpSession implements IHttpSession{
+
+    private final NetContext netContext;
+    private final HostAndPort localAddress;
+    private final HttpSessionManager httpSessionManager;
     /**
      * session对应的channel
      */
     private final Channel channel;
 
-    public HttpSession(long logicWorldGuid, Channel channel) {
-        this.logicWorldGuid = logicWorldGuid;
+    public HttpSession(NetContext netContext, HostAndPort localAddress, HttpSessionManager httpSessionManager, Channel channel) {
+        this.netContext = netContext;
+        this.localAddress = localAddress;
+        this.httpSessionManager = httpSessionManager;
         this.channel = channel;
+    }
+
+    @Override
+    public long localGuid() {
+        return netContext.localGuid();
+    }
+
+    @Override
+    public RoleType localRole() {
+        return netContext.localRole();
+    }
+
+    @Nonnull
+    @Override
+    public HostAndPort localAddress() {
+        return localAddress;
     }
 
     /**
@@ -65,8 +88,10 @@ public final class HttpSession {
         return writeAndFlush(response);
     }
 
-    public long getLogicWorldGuid() {
-        return logicWorldGuid;
+    @Override
+    public void close() {
+        netContext.netEventLoop().submit(() -> {
+            httpSessionManager.closeSession(channel, this);
+        });
     }
-
 }

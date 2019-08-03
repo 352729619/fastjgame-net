@@ -170,6 +170,7 @@ public abstract class BaseCodec extends ChannelDuplexHandler {
         byteBuf.writeLong(messageTO.getAck());
         byteBuf.writeLong(messageTO.getSequence());
         // rpc请求内容
+        byteBuf.writeByte(messageTO.isSync() ? 1 : 0);
         byteBuf.writeLong(messageTO.getRequestGuid());
         byteBuf.writeInt(messageId);
         byteBuf.writeBytes(messageBytes);
@@ -180,9 +181,11 @@ public abstract class BaseCodec extends ChannelDuplexHandler {
      * 3. 解码rpc请求包
      */
     final RpcRequestMessageTO readRpcRequestMessage(ByteBuf msg) {
+        // 捎带确认消息
         long ack= msg.readLong();
         long sequence = msg.readLong();
-
+        // rpc内容
+        boolean sync = msg.readByte() == 1;
         long requestGuid = msg.readLong();
         int messageId = msg.readInt();
         byte[] messageBytes = NetUtils.readRemainBytes(msg);
@@ -196,7 +199,7 @@ public abstract class BaseCodec extends ChannelDuplexHandler {
             // 为了不影响该连接上的其它消息，需要捕获异常
             logger.warn("deserialize messageId {} caught exception", messageId, e);
         }
-        return new RpcRequestMessageTO(ack, sequence, requestGuid, request);
+        return new RpcRequestMessageTO(ack, sequence, sync, requestGuid, request);
     }
 
     /**

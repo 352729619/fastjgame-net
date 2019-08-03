@@ -72,28 +72,28 @@ public class S2CSessionManager {
 
     private static final Logger logger = LoggerFactory.getLogger(S2CSessionManager.class);
 
+    private final NetManagerWrapper managerWrapper;
     private final NetTimeManager netTimeManager;
     private final NetConfigManager netConfigManager;
     private final TokenManager tokenManager;
     private final AcceptManager acceptManager;
     private final ForbiddenTokenHelper forbiddenTokenHelper;
-    private final LogicWorldManager logicWorldManager;
     /** logicWorld的会话信息 */
     private final Long2ObjectMap<LogicWorldSessionInfo> logicWorldSessionInfoMap = new Long2ObjectOpenHashMap<>();
 
     @Inject
-    public S2CSessionManager(NetTimeManager netTimeManager, NetConfigManager netConfigManager, NetTriggerManager netTriggerManager,
-                             TokenManager tokenManager, AcceptManager acceptManager, LogicWorldManager logicWorldManager) {
+    public S2CSessionManager(NetManagerWrapper managerWrapper, NetTimeManager netTimeManager, NetConfigManager netConfigManager,
+                             NetTimerManager netTimerManager, TokenManager tokenManager, AcceptManager acceptManager) {
+        this.managerWrapper = managerWrapper;
         this.netTimeManager = netTimeManager;
         this.netConfigManager = netConfigManager;
         this.tokenManager = tokenManager;
         this.acceptManager = acceptManager;
-        this.logicWorldManager = logicWorldManager;
-        this.forbiddenTokenHelper=new ForbiddenTokenHelper(netTimeManager, netTriggerManager, netConfigManager.tokenForbiddenTimeout());
+        this.forbiddenTokenHelper=new ForbiddenTokenHelper(netTimeManager, netTimerManager, netConfigManager.tokenForbiddenTimeout());
 
         // 定时检查会话超时的timer(1/3个周期检测一次)
         Timer checkTimeOutTimer = Timer.newInfiniteTimer(netConfigManager.sessionTimeout()/3 * 1000,this::checkSessionTimeout);
-        netTriggerManager.addTimer(checkTimeOutTimer);
+        netTimerManager.addTimer(checkTimeOutTimer);
     }
 
     /**
@@ -108,31 +108,24 @@ public class S2CSessionManager {
     }
 
     /**
-     * @see AcceptManager#bind(boolean, int, ChannelInitializer)
-     */
-    public HostAndPort bind(long worldGuid, boolean outer, int port,
-                            ChannelInitializerSupplier initializerSupplier,
-                            SessionLifecycleAware<S2CSession> lifecycleAware) throws BindException {
-        createLogicWorldSessionInfo(worldGuid, initializerSupplier, lifecycleAware);
-        return acceptManager.bind(outer, port, initializerSupplier.get());
-    }
-
-    /**
      * @see AcceptManager#bindRange(boolean, PortRange, ChannelInitializer)
      */
-    public HostAndPort bindRange(long worldGuid, boolean outer, PortRange portRange,
+    public HostAndPort bindRange(NetContext netContext, boolean outer, PortRange portRange,
                                  ChannelInitializerSupplier initializerSupplier,
-                                 SessionLifecycleAware<S2CSession> lifecycleAware) throws BindException {
-        createLogicWorldSessionInfo(worldGuid, initializerSupplier, lifecycleAware);
+                                 SessionLifecycleAware<S2CSession> lifecycleAware,
+                                 MessageHandler messageHandler) throws BindException {
 
-        return acceptManager.bindRange(outer, portRange, initializerSupplier.get());
+        createLogicWorldSessionInfo(netContext, localAddress, initializerSupplier, lifecycleAware, messageHandler);
+        HostAndPort localAddress = acceptManager.bindRange(outer, portRange, initializerSupplier.get());
+
+        return localAddress;
     }
 
     /** 创建必要的信息 */
-    private void createLogicWorldSessionInfo(long worldGuid,
+    private void createLogicWorldSessionInfo(NetContext netContext,
                                              ChannelInitializerSupplier initializerSupplier,
-                                             SessionLifecycleAware<S2CSession> lifecycleAware) {
-        logicWorldManager.ensureRegistered(worldGuid);
+                                             SessionLifecycleAware<S2CSession> lifecycleAware,
+                                             MessageHandler messageHandler) {
         LogicWorldInNetWorldInfo logicWorldInNetWorldInfo = logicWorldManager.getLogicWorldInfo(worldGuid);
         assert null != logicWorldInNetWorldInfo;
         RoleType worldType = logicWorldInNetWorldInfo.getWorldType();
@@ -228,7 +221,7 @@ public class S2CSessionManager {
             removeSession(logicWorldGuid, clientGuid,"cached message is too much! cacheMessageNum="+sessionWrapper.getCacheMessageNum());
             responsePromise.trySuccess(new RpcResponse(RpcResultCode.SESSION_NOT_EXIST, null));
         }else {
-            RpcRequestMessage rpcRequestMessage = new RpcRequestMessage(sessionWrapper.getMessageQueue().nextSequence(), sessionWrapper.nextRequestGuid(), request);
+            RpcRequestMessage rpcRequestMessage = new RpcRequestMessage(sessionWrapper.getMessageQueue().nextSequence(), sync, sessionWrapper.nextRequestGuid(), request);
             // 必须先保存promise，再发送消息，严格的时序保证
             sessionWrapper.getRpcListenerMap().put(rpcRequestMessage.getRequestGuid(), responsePromise);
             // 注意：这行代码两个控制器不一样，一个是放入了缓存，一个是立即发送
@@ -411,7 +404,7 @@ public class S2CSessionManager {
 
         // 登录成功
         LogicWorldSessionInfo logicWorldSessionInfo = logicWorldSessionInfoMap.get(requestParam.localGuid());
-        S2CSession session = new S2CSession(logicWorldSessionInfo.localGuid, logicWorldSessionInfo.localRole, requestParam.getClientGuid(), clientToken.getClientRoleType());
+        S2CSession session = new S2CSession(logicWorldSessionInfo.localGuid, logicWorldSessionInfo.localRole, localAddress, requestParam.getClientGuid(), clientToken.getClientRoleType());
         SessionWrapper sessionWrapper = new SessionWrapper(logicWorldSessionInfo, session);
         logicWorldSessionInfo.sessionWrapperMap.put(requestParam.getClientGuid(),sessionWrapper);
 

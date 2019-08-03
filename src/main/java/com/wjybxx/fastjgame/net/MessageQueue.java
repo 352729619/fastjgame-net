@@ -24,8 +24,9 @@ import java.util.LinkedList;
  * 消息队列，可与tcp的收发缓冲区比较
  * 消息视图大致如下：
  *
- * |---------------------------  nextSequence
- * | sentQueue | needSendQueue | ↓
+ *              ↓nextSequence
+ * |---------------------------
+ * | sentQueue | needSendQueue |
  * | --------------------------|
  * |    0~n    |      0~n      |
  * |---------------------------
@@ -51,17 +52,13 @@ public final class MessageQueue {
     /**
      * 已发送待确认的消息，只要发送过就不会再放入 {@link #needSendQueue}
      * Q:为什么不使用arrayList?
-     * A: 1.存在大量的删除操作 2.太占用内存。
+     * A: 1.存在大量的删除操作 2.太占用内存。 3.遍历很少
      */
     private final LinkedList<NetMessage> sentQueue = new LinkedList<>();
     /**
      * 待发送的消息,还没有尝试发送过的消息
      */
     private final LinkedList<UnsentMessage> needSendQueue = new LinkedList<>();
-    /**
-     * rpc计数器
-     */
-    private final LongSequencer rpcRequestGuidSequencer = new LongSequencer(0);
 
     // -----------------对方返回的ack
 
@@ -75,7 +72,6 @@ public final class MessageQueue {
 
     /**
      * 获取上一个已确认的消息号
-     * @return
      */
     private long getAckLowerBound(){
         // 有已发送未确认的消息，那么它的上一个就是ack下界
@@ -119,7 +115,6 @@ public final class MessageQueue {
     /**
      * 生成ack信息
      * @param ack 服务器发送来的ack
-     * @return
      */
     public String generateAckErrorInfo(long ack) {
         return String.format("{ack=%d, lastAckGuid=%d, nextMaxAckGuid=%d}", ack, getAckLowerBound(), getAckUpperBound());
@@ -130,13 +125,6 @@ public final class MessageQueue {
      */
     public long nextSequence(){
         return sequencer.incAndGet();
-    }
-
-    /**
-     * 分配下一个rpc请求的编号
-     */
-    public long nextRpcRequestGuid() {
-        return rpcRequestGuidSequencer.incAndGet();
     }
 
     public long getAck() {

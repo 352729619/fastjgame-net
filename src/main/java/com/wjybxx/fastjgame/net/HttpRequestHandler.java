@@ -26,11 +26,13 @@ import com.wjybxx.fastjgame.configwrapper.ConfigWrapper;
  * github - https://github.com/hl845740757
  */
 public interface HttpRequestHandler{
+
     /**
      * 处理Http请求
      * @param httpSession 该http对应的session
      * @param path 注册时的请求路径
      * @param requestParams 请求参数
      */
-    void handle(HttpSession httpSession, String path, ConfigWrapper requestParams);
+    void onHttpRequest(IHttpSession httpSession, String path, ConfigWrapper requestParams) throws Exception;
+
 }

@@ -17,7 +17,7 @@
 package com.wjybxx.fastjgame.misc;
 
 import com.wjybxx.fastjgame.manager.NetTimeManager;
-import com.wjybxx.fastjgame.manager.NetTriggerManager;
+import com.wjybxx.fastjgame.manager.NetTimerManager;
 import com.wjybxx.fastjgame.net.Token;
 import com.wjybxx.fastjgame.trigger.Timer;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
@@ -38,7 +38,7 @@ public final class ForbiddenTokenHelper {
     private static final Logger logger= LoggerFactory.getLogger(ForbiddenTokenHelper.class);
 
     private final NetTimeManager netTimeManager;
-    private final NetTriggerManager netTriggerManager;
+    private final NetTimerManager netTimerManager;
     private final Long2ObjectMap<ForbiddenTokenInfo> forbiddenTokenMap =new Long2ObjectOpenHashMap<>(512);
     /**
      * 禁用多久(过期时间)
@@ -46,17 +46,17 @@ public final class ForbiddenTokenHelper {
      */
     private final int forbiddenTimeout;
 
-    public ForbiddenTokenHelper(NetTimeManager netTimeManager, NetTriggerManager netTriggerManager, int forbiddenTimeout) {
+    public ForbiddenTokenHelper(NetTimeManager netTimeManager, NetTimerManager netTimerManager, int forbiddenTimeout) {
         this.netTimeManager = netTimeManager;
-        this.forbiddenTimeout=forbiddenTimeout;
-        this.netTriggerManager = netTriggerManager;
+        this.forbiddenTimeout = forbiddenTimeout;
+        this.netTimerManager = netTimerManager;
 
         // 定时检查释放被禁用的token(1/3个周期检查一次)
         Timer releaseCacheTimer = new Timer(forbiddenTimeout/3 * 1000,
                 Integer.MAX_VALUE,
                 this::releaseForbiddenToken);
 
-        netTriggerManager.addTimer(releaseCacheTimer);
+        netTimerManager.addTimer(releaseCacheTimer);
     }
 
     /**

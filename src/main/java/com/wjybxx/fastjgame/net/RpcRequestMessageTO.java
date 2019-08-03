@@ -30,15 +30,22 @@ import javax.annotation.concurrent.Immutable;
 @TransferObject
 public class RpcRequestMessageTO extends MessageTO {
 
+	/** 是否rpc同步调用，是否加急 */
+	private final boolean sync;
 	/** rpc请求编号，用于返回消息 */
 	private final long requestGuid;
 	/** rpc请求内容 */
 	private final Object request;
 
-	public RpcRequestMessageTO(long ack, long sequence, long requestGuid, Object request) {
+	public RpcRequestMessageTO(long ack, long sequence, boolean sync, long requestGuid, Object request) {
 		super(ack, sequence);
+		this.sync = sync;
 		this.requestGuid = requestGuid;
 		this.request = request;
+	}
+
+	public boolean isSync() {
+		return sync;
 	}
 
 	public long getRequestGuid() {

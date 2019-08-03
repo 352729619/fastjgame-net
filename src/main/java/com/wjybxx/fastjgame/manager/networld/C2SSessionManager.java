@@ -18,16 +18,16 @@ package com.wjybxx.fastjgame.manager.networld;
 
 import com.google.inject.Inject;
 import com.wjybxx.fastjgame.concurrent.Promise;
-import com.wjybxx.fastjgame.manager.AcceptManager;
-import com.wjybxx.fastjgame.manager.NetConfigManager;
-import com.wjybxx.fastjgame.manager.NetTimeManager;
+import com.wjybxx.fastjgame.manager.*;
 import com.wjybxx.fastjgame.misc.HostAndPort;
 import com.wjybxx.fastjgame.misc.IntSequencer;
-import com.wjybxx.fastjgame.misc.LogicWorldInNetWorldInfo;
 import com.wjybxx.fastjgame.misc.LongSequencer;
+import com.wjybxx.fastjgame.misc.NetContext;
 import com.wjybxx.fastjgame.net.*;
 import com.wjybxx.fastjgame.net.initializer.ChannelInitializerFactory;
 import com.wjybxx.fastjgame.net.initializer.ChannelInitializerSupplier;
+import com.wjybxx.fastjgame.utils.ConcurrentUtils;
+import com.wjybxx.fastjgame.utils.FastCollectionsUtils;
 import com.wjybxx.fastjgame.utils.NetUtils;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
@@ -69,101 +69,116 @@ public class C2SSessionManager {
 
     private static final Logger logger = LoggerFactory.getLogger(C2SSessionManager.class);
 
+    private final NetManagerWrapper managerWrapper;
     private final NetConfigManager netConfigManager;
     private final AcceptManager acceptManager;
     private final NetTimeManager netTimeManager;
-    private final LogicWorldManager logicWorldManager;
+    private final TokenManager tokenManager;
     /** 所有logicWorld的会话信息 */
-    private final Long2ObjectMap<LogicWorldSessionInfo> logicWorldSessionInfoMap = new Long2ObjectOpenHashMap<>();
+    private final Long2ObjectMap<UserInfo> userInfoMap = new Long2ObjectOpenHashMap<>();
 
     @Inject
-    public C2SSessionManager(NetConfigManager netConfigManager, AcceptManager acceptManager, NetTimeManager netTimeManager,
-                             LogicWorldManager logicWorldManager) {
+    public C2SSessionManager(NetManagerWrapper managerWrapper, NetConfigManager netConfigManager,
+                             AcceptManager acceptManager, NetTimeManager netTimeManager, TokenManager tokenManager) {
+        this.managerWrapper = managerWrapper;
         this.netConfigManager = netConfigManager;
         this.acceptManager = acceptManager;
         this.netTimeManager = netTimeManager;
-        this.logicWorldManager = logicWorldManager;
+        this.tokenManager = tokenManager;
     }
 
     public void tick(){
-        for (LogicWorldSessionInfo logicWorldSessionInfo:logicWorldSessionInfoMap.values()) {
-            for (SessionWrapper sessionWrapper:logicWorldSessionInfo.sessionWrapperMap.values()){
-                if (sessionWrapper.getState()==null){
+        for (UserInfo userInfo : userInfoMap.values()) {
+            for (SessionWrapper sessionWrapper: userInfo.sessionWrapperMap.values()){
+                if (sessionWrapper.getState() == null){
                     continue;
                 }
+                // 状态机刷帧
                 sessionWrapper.getState().execute();
+                // 检测超时的rpc调用
+                FastCollectionsUtils.removeIfAndThen(sessionWrapper.getRpcPromiseMap(),
+                        (long k, RpcPromiseInfo rpcPromiseInfo) -> netTimeManager.getSystemMillTime() >= rpcPromiseInfo.timeoutMs,
+                        (long k, RpcPromiseInfo rpcPromiseInfo) -> rpcPromiseInfo.rpcPromise.trySuccess(RpcResponse.newFailResponse(RpcResultCode.TIMEOUT)));
             }
         }
     }
 
     /**
-     * 是否存在指定session
-     * @param logicWorldGuid 我的标识
-     * @param remoteLogicWorldGuid 远程标识
-     * @return 如果存在则返回true
-     */
-    public boolean containsSession(long logicWorldGuid, long remoteLogicWorldGuid) {
-        return null != getSessionWrapper(logicWorldGuid, remoteLogicWorldGuid);
-    }
-
-    /**
      * 获取session
-     * @param logicWorldGuid 对应的logicWorld
+     * @param localGuid 对应的logicWorld
      * @param serverGuid 服务器guid
      * @return 如果存在则返回对应的session，否则返回null
      */
     @Nullable
-    private SessionWrapper getSessionWrapper(long logicWorldGuid, long serverGuid){
-        LogicWorldSessionInfo logicWorldSessionInfo = logicWorldSessionInfoMap.get(logicWorldGuid);
-        if (null == logicWorldSessionInfo) {
+    private SessionWrapper getSessionWrapper(long localGuid, long serverGuid){
+        UserInfo userInfo = userInfoMap.get(localGuid);
+        if (null == userInfo) {
             return null;
         }
-        return logicWorldSessionInfo.sessionWrapperMap.get(serverGuid);
+        return userInfo.sessionWrapperMap.get(serverGuid);
     }
 
     /**
      * 注册一个服务器
-     * @param localGuid 发起连接请求的logicWorld标识
+     * @param netContext 本地信息
      * @param serverGuid 在登录服或别处获得的serverGuid
      * @param serverType 服务器类型
      * @param hostAndPort 服务器地址
      * @param initializerSupplier 初始化器提供者，如果initializer是线程安全的，可以始终返回同一个对象
      * @param lifecycleAware 作为客户端，链接不同的服务器时，可能有不同的生命周期事件处理
-     * @param encryptedLoginToken 在登录服或别处获得的登录用的token
+     * @param messageHandler 消息处理器
      */
-    public C2SSession connect(long localGuid,
-                              long serverGuid, RoleType serverType, HostAndPort hostAndPort,
-                              @Nonnull ChannelInitializerSupplier initializerSupplier,
-                              @Nonnull SessionLifecycleAware<C2SSession> lifecycleAware,
-                              @Nonnull byte[] encryptedLoginToken) throws IllegalArgumentException{
+    public void connect(NetContext netContext, long serverGuid, RoleType serverType, HostAndPort hostAndPort,
+                        @Nonnull ChannelInitializerSupplier initializerSupplier,
+                        @Nonnull SessionLifecycleAware<C2SSession> lifecycleAware,
+                        @Nonnull MessageHandler messageHandler) throws IllegalArgumentException{
         // 已注册
+        long localGuid = netContext.localGuid();
         if (getSessionWrapper(localGuid, serverGuid) != null){
-            throw new IllegalArgumentException("serverGuid " + serverGuid+ " registered before.");
+            throw new IllegalArgumentException("session localGuid " + localGuid + "- serverGuid " + serverGuid+ " registered before.");
         }
+        // 保存用户信息，因为是发起连接请求，因此方法参数都是针对单个会话的。
+        UserInfo userInfo = userInfoMap.computeIfAbsent(localGuid, k -> new UserInfo(netContext));
 
-        LogicWorldSessionInfo logicWorldSessionInfo = logicWorldSessionInfoMap.computeIfAbsent(localGuid, k -> {
-            return new LogicWorldSessionInfo(localGuid, initializerSupplier, lifecycleAware);
-        });
-
-        // 创建会话，尚未激活
-        C2SSession session = new C2SSession(localGuid, localRole, serverGuid, serverType, hostAndPort);
-        SessionWrapper sessionWrapper = new SessionWrapper(logicWorldSessionInfo, session, encryptedLoginToken);
-
-        logicWorldSessionInfo.sessionWrapperMap.put(session.getServerGuid(), sessionWrapper);
-        logger.debug("connect session {}", session);
+        // 创建会话
+        C2SSession session = new C2SSession(netContext, managerWrapper, serverGuid, serverType, hostAndPort);
+        byte[] encryptedLoginToken = tokenManager.newEncryptedLoginToken(netContext.localGuid(), netContext.localRole(), serverGuid, serverType);
+        SessionWrapper sessionWrapper = new SessionWrapper(userInfo, initializerSupplier, lifecycleAware, messageHandler, session, encryptedLoginToken);
+        // 保存会话
+        userInfo.sessionWrapperMap.put(session.getServerGuid(), sessionWrapper);
         // 初始为连接状态
         changeState(sessionWrapper, new ConnectingState(sessionWrapper));
-        return session;
+    }
+
+    /**
+     * 如果session可用的话
+     * @param localGuid form
+     * @param serverGuid to
+     * @param then 接下来做什么呢？
+     */
+    private void ifSessionOk(long localGuid, long serverGuid, Consumer<SessionWrapper> then) {
+        SessionWrapper sessionWrapper = getSessionWrapper(localGuid, serverGuid);
+        if (null == sessionWrapper){
+            logger.warn("server {} is removed, but try send message.", serverGuid);
+            return;
+        }
+        MessageQueue messageQueue = sessionWrapper.getMessageQueue();
+        if (messageQueue.getCacheMessageNum() >= netConfigManager.clientMaxCacheNum()){
+            // 缓存过多，删除会话
+            removeSession(localGuid, serverGuid, "cacheMessageNum is too much!");
+        }else {
+            then.accept(sessionWrapper);
+        }
     }
 
     /**
      * 向服务器发送一个消息,不保证立即发送，因为会话状态不确定，只保证最后一定会按顺序发送出去
-     * @param logicWorldGuid from
+     * @param localGuid from
      * @param serverGuid to
      * @param message 消息内容
      */
-    public void send(long logicWorldGuid, long serverGuid, @Nonnull Object message){
-        ifSessionOk(logicWorldGuid, serverGuid, sessionWrapper -> {
+    public void send(long localGuid, long serverGuid, @Nonnull Object message){
+        ifSessionOk(localGuid, serverGuid, sessionWrapper -> {
             MessageQueue messageQueue = sessionWrapper.getMessageQueue();
             // 添加到待发送队列
             UnsentOneWayMessage logicMessage = new UnsentOneWayMessage(message);
@@ -172,71 +187,87 @@ public class C2SSessionManager {
     }
 
     /**
-     * 如果session可用的话
-     * @param logicWorldGuid form
+     * 发送rpc调用结果
+     * @param localGuid form
      * @param serverGuid to
-     * @param then 接下来做什么呢？
+     * @param requestGuid rpc请求号
+     * @param response rpc调用结果
      */
-    private void ifSessionOk(long logicWorldGuid, long serverGuid, Consumer<SessionWrapper> then) {
-        SessionWrapper sessionWrapper = getSessionWrapper(logicWorldGuid, serverGuid);
-        if (null== sessionWrapper){
-            logger.warn("server {} is removed, but try send message.",serverGuid);
-            return;
-        }
-        MessageQueue messageQueue = sessionWrapper.getMessageQueue();
-        if (messageQueue.getCacheMessageNum() >= netConfigManager.clientMaxCacheNum()){
-            // 缓存过多，删除会话
-            removeSession(logicWorldGuid, serverGuid, "cacheMessageNum is too much!");
-        }else {
-            then.accept(sessionWrapper);
-        }
-    }
-
-    public void sendRpcResponse(long logicWorldGuid, long serverGuid, long requestGuid, RpcResponse response) {
-        ifSessionOk(logicWorldGuid, serverGuid, sessionWrapper -> {
-            MessageQueue messageQueue = sessionWrapper.getMessageQueue();
-            // 添加到待发送队列
+    public void sendRpcResponse(long localGuid, long serverGuid, boolean sync, long requestGuid, RpcResponse response) {
+        ifSessionOk(localGuid, serverGuid, sessionWrapper -> {
             UnsentRpcResponse unsentRpcResponse = new UnsentRpcResponse(requestGuid, response);
-            messageQueue.getNeedSendQueue().addLast(unsentRpcResponse);
+            if (sync) {
+                sessionWrapper.state.trySendImmediately(unsentRpcResponse);
+            } else {
+                // 添加到待发送队列
+                MessageQueue messageQueue = sessionWrapper.getMessageQueue();
+                messageQueue.getNeedSendQueue().addLast(unsentRpcResponse);
+            }
         });
     }
 
-    public void rpc(long logicWorldGuid, long serverGuid, @Nonnull Object request, Promise<RpcResponse> responsePromise){
-        SessionWrapper sessionWrapper = getSessionWrapper(logicWorldGuid, serverGuid);
-        if (null== sessionWrapper){
+    /**
+     * 发送一个rpc调用
+     * @param localGuid 我的标识
+     * @param serverGuid 远程标识
+     * @param request rpc请求内容
+     * @param timeoutMs 超时时间
+     * @param sync 是否是同步调用，同步调用会立即发送(会插队)，而非同步调用可能会先缓存，不是立即发送。
+     * @param rpcPromise 接收结果的promise
+     */
+    public void rpc(long localGuid, long serverGuid, @Nonnull Object request, long timeoutMs, boolean sync, Promise<RpcResponse> rpcPromise){
+        SessionWrapper sessionWrapper = getSessionWrapper(localGuid, serverGuid);
+        if (null == sessionWrapper){
             logger.warn("server {} is removed, but try send rpcRequest.",serverGuid);
-            responsePromise.trySuccess(new RpcResponse(RpcResultCode.SESSION_NOT_EXIST, null));
+            rpcPromise.trySuccess(RpcResponse.SESSION_CLOSED);
             return;
         }
         MessageQueue messageQueue =sessionWrapper.getMessageQueue();
         if (messageQueue.getCacheMessageNum() >= netConfigManager.clientMaxCacheNum()){
             // 缓存过多，删除会话
-            removeSession(logicWorldGuid, serverGuid, "cached message is too much!");
-            responsePromise.trySuccess(new RpcResponse(RpcResultCode.SESSION_NOT_EXIST, null));
+            removeSession(localGuid, serverGuid, "cached message is too much!");
+            rpcPromise.trySuccess(RpcResponse.SESSION_CLOSED);
         }else {
-            RpcRequestMessage rpcRequestMessage = new RpcRequestMessage(messageQueue.nextSequence(), sessionWrapper.nextRequestGuid(), request);
-            // 必须先保存promise，再发送消息，严格的时序保证
-            sessionWrapper.getRpcListenerMap().put(rpcRequestMessage.getRequestGuid(), responsePromise);
-            messageQueue.getNeedSendQueue().addLast(rpcRequestMessage);
+            UnsentRpcRequest rpcRequest = new UnsentRpcRequest(sessionWrapper.nextRequestGuid(), sync, request);
+            // 在发送前，保存promise信息
+            RpcPromiseInfo rpcPromiseInfo = new RpcPromiseInfo(rpcPromise, netTimeManager.getSystemMillTime() + timeoutMs);
+            sessionWrapper.getRpcPromiseMap().put(rpcRequest.getRpcRequestGuid(), rpcPromiseInfo);
+            if (sync) {
+                // 同步调用，尝试立即发送
+                sessionWrapper.state.trySendImmediately(rpcRequest);
+            } else {
+                // 添加到缓存队列，稍后发送
+                messageQueue.getNeedSendQueue().addLast(rpcRequest);
+            }
         }
     }
 
     /**
      * 关闭一个会话，如果注册了的话
-     * @param logicWorldGuid logicWorld标识
+     * @param localGuid 本地用户标识
      * @param serverGuid 远程节点标识
      */
-    @Nullable
-    public C2SSession removeSession(long logicWorldGuid, long serverGuid, String reason){
-        SessionWrapper sessionWrapper = getSessionWrapper(logicWorldGuid, serverGuid);
-        if (null==sessionWrapper){
-            return null;
+    public void removeSession(long localGuid, long serverGuid, String reason){
+        UserInfo userInfo = userInfoMap.get(localGuid);
+        // 没有该用户的会话
+        if (userInfo == null) {
+            return;
         }
-        C2SSession session=sessionWrapper.getSession();
+        // 删除会话
+        SessionWrapper sessionWrapper = userInfo.sessionWrapperMap.remove(serverGuid);
+        if (null == sessionWrapper){
+            return;
+        }
+        C2SSession session = sessionWrapper.getSession();
+        // 标记为已关闭，这里不能调用close，否则死循环了。
+        session.setClosed();
         try{
-            // 验证成功过才会执行断开回调操作(调用过onSessionConnected方法)
+            // 验证成功过才执行断开回调操作(调用过onSessionConnected方法)
             if (sessionWrapper.getVerifiedSequencer().get() > 0){
-                sessionWrapper.logicWorldSessionInfo.lifecycleAware.onSessionDisconnected(session);
+                NetContext netContext = sessionWrapper.userInfo.netContext;
+                netContext.localEventLoop().execute(() -> {
+                    sessionWrapper.lifecycleAware.onSessionDisconnected(session);
+                });
             }
         } catch (Exception e){
             logger.warn("disconnected callback caught exception.",reason,session);
@@ -246,17 +277,19 @@ public class C2SSessionManager {
                 sessionWrapper.getState().closeChannel();
                 sessionWrapper.setState(null);
             }
+            logger.info("remove session by reason of {}, session info={}.",reason,session);
         }
-        logger.info("remove session by reason of {}, session info={}.",reason,session);
-        return session;
     }
-
     // region 事件处理
 
+    /**
+     * 如果产生事件的channel可用的话，接下来干什么呢？
+     * @param then 接下来执行的逻辑
+     */
     private <T extends NetEventParam> void ifEventChannelOK(Channel eventChannel, T eventParam, Consumer<C2SSessionState> then){
         SessionWrapper sessionWrapper = getSessionWrapper(eventParam.localGuid(), eventParam.remoteGuid());
         // 非法的channel
-        if (sessionWrapper==null){
+        if (sessionWrapper == null){
             NetUtils.closeQuietly(eventChannel);
             return;
         }
@@ -336,7 +369,7 @@ public class C2SSessionManager {
     /**
      * 当logicWorld关闭，关闭该logicWorld对应的所有channel
      */
-    public void onLogicWorldShutdown(long logicWorldGuid) {
+    public void onLogicWorldShutdown(long localGuid) {
 
     }
 
@@ -449,6 +482,14 @@ public class C2SSessionManager {
         protected void onRcvServerMessage(Channel eventChannel, OneWayMessageEventParam oneWayMessageEventParam){
             throw new IllegalStateException(this.getClass().getSimpleName());
         }
+
+        /**
+         * 尝试立即发送一条消息，默认放在缓存队列中等待发送。
+         * @param unsentMessage 未发送的消息
+         */
+        protected void trySendImmediately(UnsentMessage unsentMessage) {
+            getMessageQueue().getNeedSendQueue().add(unsentMessage);
+        }
     }
 
     /**
@@ -502,7 +543,7 @@ public class C2SSessionManager {
                 tryConnect();
             }else {
                 // 无法连接到服务器，移除会话，结束
-                removeSession(sessionWrapper.getLogicWorldGuid(), session.getServerGuid(),"can't connect remote " + session.getHostAndPort());
+                removeSession(sessionWrapper.getLocalGuid(), session.getServerGuid(),"can't connect remote " + session.getHostAndPort());
             }
         }
 
@@ -592,7 +633,7 @@ public class C2SSessionManager {
 
             int sndTokenTimes = getSndTokenSequencer().incAndGet();
             // 创建验证请求
-            ConnectRequestTO connectRequest = new ConnectRequestTO(sessionWrapper.getLogicWorldGuid(),
+            ConnectRequestTO connectRequest = new ConnectRequestTO(sessionWrapper.getLocalGuid(),
                     sndTokenTimes, getMessageQueue().getAck(), sessionWrapper.getEncryptedToken());
             channel.writeAndFlush(connectRequest);
             logger.debug("{} times send verify msg to server {}",sndTokenTimes,session);
@@ -615,7 +656,7 @@ public class C2SSessionManager {
             MessageQueue messageQueue = getMessageQueue();
             // 收到的ack有误(有丢包)，这里重连已没有意义(始终有消息漏掉了，无法恢复)
             if (!messageQueue.isAckOK(resultParam.getAck())){
-                removeSession(sessionWrapper.getLogicWorldGuid(), resultParam.getServerGuid(), "server ack is error. ackInfo="+messageQueue.generateAckErrorInfo(resultParam.getAck()));
+                removeSession(sessionWrapper.getLocalGuid(), resultParam.getServerGuid(), "server ack is error. ackInfo="+messageQueue.generateAckErrorInfo(resultParam.getAck()));
                 return;
             }
             // 更新消息队列
@@ -672,10 +713,16 @@ public class C2SSessionManager {
             int verifiedTimes = getVerifiedSequencer().incAndGet();
             // 增加验证次数
             if (verifiedTimes==1){
-                logger.info("first verified success, sessionInfo={}",session);
-                sessionWrapper.getLifecycleAware().onSessionConnected(session);
+                logger.info("first verified success, sessionInfo={}", session);
+                NetContext netContext = sessionWrapper.userInfo.netContext;
+                // 提交到用户线程
+                ConcurrentUtils.safeExecute()
+
+                netContext.localEventLoop().execute(()-> {
+                    sessionWrapper.getLifecycleAware().onSessionConnected(session);
+                });
             }else {
-                logger.info("reconnect verified success, verifiedTimes={},sessionInfo={}",verifiedTimes,session);
+                logger.info("reconnect verified success, verifiedTimes={},sessionInfo={}", verifiedTimes, session);
 
                 // 重发未确认接受到的消息
                 MessageQueue messageQueue= getMessageQueue();
@@ -703,8 +750,7 @@ public class C2SSessionManager {
 
             // 是否需要发送ack-ping包，ping包服务器收到一定是会返回的，而普通消息则不一定。
             if (isNeedSendAckPing()){
-                AckPingPongMessage ackPingMessage=new AckPingPongMessage(messageQueue.nextSequence());
-                messageQueue.getNeedSendQueue().add(ackPingMessage);
+                messageQueue.getNeedSendQueue().add(new UnsentAckPingPong());
                 hasPingMessage=true;
             }
 
@@ -712,16 +758,23 @@ public class C2SSessionManager {
             if (messageQueue.getNeedSendQueue().size()>0){
                 // 发送消息
                 while (messageQueue.getNeedSendQueue().size()>0){
-                    // 添加到已发送队列
-                    NetMessage message = messageQueue.getNeedSendQueue().removeFirst();
-                    messageQueue.getSentQueue().addLast(message);
-                    // 更新ack超时时间
-                    message.setTimeout(nextAckTimeout());
-                    channel.write(message.build(messageQueue.getAck()));
+                    UnsentMessage unsentMessage = messageQueue.getNeedSendQueue().removeFirst();
+                    MessageTO messageTO = transferToSentMessage(unsentMessage, messageQueue);
+                    channel.write(messageTO);
                 }
                 channel.flush();
                 lastSendMessageTime= netTimeManager.getSystemSecTime();
             }
+        }
+
+        /** 将一个消息包转换为已发送状态 */
+        private MessageTO transferToSentMessage(UnsentMessage unsentMessage, MessageQueue messageQueue) {
+            NetMessage netMessage = unsentMessage.build(messageQueue.nextSequence());
+            // 添加到已发送队列
+            messageQueue.getSentQueue().addLast(netMessage);
+            // 更新ack超时时间
+            netMessage.setTimeout(nextAckTimeout());
+            return netMessage.build(messageQueue.getAck());
         }
 
         /**
@@ -761,7 +814,7 @@ public class C2SSessionManager {
         protected void onRcvServerRpcRequest(Channel eventChannel, RpcRequestEventParam rpcRequestEventParam) {
             boolean success = tryUpdateMessageQueue(rpcRequestEventParam.messageTO());
             if (success) {
-                LogicWorldInNetWorldInfo logicWorldInfo = logicWorldManager.getLogicWorldInfo(sessionWrapper.getLogicWorldGuid());
+                LogicWorldInNetWorldInfo logicWorldInfo = logicWorldManager.getLogicWorldInfo(sessionWrapper.getLocalGuid());
                 if (null == logicWorldInfo) {
                     // 此时不应该能走到这里来，该logicWorld关联的session都应该被删除了。
                     logger.error("session state error!");
@@ -776,7 +829,7 @@ public class C2SSessionManager {
         protected void onRcvServerRpcResponse(Channel eventChannel, RpcResponseEventParam rpcResponseEventParam) {
             boolean success = tryUpdateMessageQueue(rpcResponseEventParam.messageTO());
             if (success) {
-                Promise<RpcResponse> responseListenableFuture = sessionWrapper.getRpcListenerMap().remove(rpcResponseEventParam.messageTO().getRequestGuid());
+                Promise<RpcResponse> responseListenableFuture = sessionWrapper.getRpcPromiseMap().remove(rpcResponseEventParam.messageTO().getRequestGuid());
                 if (null == responseListenableFuture) {
                     // 可能超时了
                     logger.warn("rpc may timeout");
@@ -796,7 +849,13 @@ public class C2SSessionManager {
         protected void onRcvServerMessage(Channel eventChannel, OneWayMessageEventParam oneWayMessageEventParam) {
             boolean success = tryUpdateMessageQueue(oneWayMessageEventParam.messageTO());
             if (success){
-                LogicWorldInNetWorldInfo logicWorldInfo = logicWorldManager.getLogicWorldInfo(sessionWrapper.getLogicWorldGuid());
+                NetContext netContext = sessionWrapper.userInfo.netContext;
+                netContext.localEventLoop().execute(() -> {
+
+                });
+
+
+                LogicWorldInNetWorldInfo logicWorldInfo = logicWorldManager.getLogicWorldInfo(sessionWrapper.getLocalGuid());
                 if (null == logicWorldInfo) {
                     // 此时不应该能走到这里来，该logicWorld关联的session都应该被删除了。
                     logger.error("session state error!");
@@ -828,38 +887,33 @@ public class C2SSessionManager {
             messageQueue.updateSentQueue(messageTO.getAck());
             return true;
         }
+
+        @Override
+        protected void trySendImmediately(UnsentMessage unsentMessage) {
+            // 当前状态下可发送消息
+            MessageTO messageTO = transferToSentMessage(unsentMessage, getMessageQueue());
+            // 立即发送
+            channel.writeAndFlush(messageTO);
+        }
+
     }
 
     // ------------------------------------------------------ 内部封装 ---------------------------------
 
-    private static class LogicWorldSessionInfo {
+    /** 用户的所有会话信息 */
+    private static class UserInfo {
 
-        // ------------- 会话关联的本地对象 -----------------
-        /** 连接的发起方的guid */
-        private final long logicWorldGuid;
-
-        /**
-         * 该会话使用的initializer提供者。
-         * （如果容易用错的话，可以改成{@link ChannelInitializerFactory}）
-         */
-        private final ChannelInitializerSupplier initializerSupplier;
-        /**
-         * 生命周期回调接口
-         */
-        private final SessionLifecycleAware<C2SSession> lifecycleAware;
+        /** 用户信息 */
+        private final NetContext netContext;
 
         /**
          * 客户端发起的所有会话,注册时加入，close时删除
          * serverGuid --> session
          */
-        private final Long2ObjectMap<SessionWrapper> sessionWrapperMap =new Long2ObjectOpenHashMap<>();
+        private final Long2ObjectMap<SessionWrapper> sessionWrapperMap = new Long2ObjectOpenHashMap<>();
 
-        LogicWorldSessionInfo(long logicWorldGuid,
-                                     @Nonnull ChannelInitializerSupplier initializerSupplier,
-                                     @Nonnull SessionLifecycleAware<C2SSession> lifecycleAware) {
-            this.logicWorldGuid = logicWorldGuid;
-            this.initializerSupplier = initializerSupplier;
-            this.lifecycleAware = lifecycleAware;
+        UserInfo(NetContext netContext) {
+            this.netContext = netContext;
         }
     }
 
@@ -869,8 +923,23 @@ public class C2SSessionManager {
      */
     private static class SessionWrapper {
 
-        /** 建立Session和logicWorld两者的关系 */
-        private final LogicWorldSessionInfo logicWorldSessionInfo;
+        /** 建立Session和用户之间的关系 */
+        private final UserInfo userInfo;
+
+        /**
+         * 该会话使用的initializer提供者。
+         * （如果容易用错的话，可以改成{@link ChannelInitializerFactory}）
+         */
+        private final ChannelInitializerSupplier initializerSupplier;
+
+        /**
+         * 该会话使用的生命周期回调接口
+         */
+        private final SessionLifecycleAware<C2SSession> lifecycleAware;
+        /**
+         * 消息处理器
+         */
+        private final MessageHandler messageHandler;
 
         /**
          * 客户端与服务器之间的会话信息
@@ -905,10 +974,15 @@ public class C2SSessionManager {
         /**
          * 当前会话上的rpc请求
          */
-        private final Long2ObjectMap<Promise<RpcResponse>> rpcListenerMap = new Long2ObjectOpenHashMap<>();
+        private final Long2ObjectMap<RpcPromiseInfo> rpcPromiseMap = new Long2ObjectOpenHashMap<>();
 
-        SessionWrapper(LogicWorldSessionInfo logicWorldSessionInfo, C2SSession session, byte[] encryptedToken) {
-            this.logicWorldSessionInfo = logicWorldSessionInfo;
+        SessionWrapper(UserInfo userInfo, ChannelInitializerSupplier initializerSupplier,
+                       SessionLifecycleAware<C2SSession> lifecycleAware, MessageHandler messageHandler,
+                       C2SSession session, byte[] encryptedToken) {
+            this.userInfo = userInfo;
+            this.initializerSupplier = initializerSupplier;
+            this.lifecycleAware = lifecycleAware;
+            this.messageHandler = messageHandler;
             this.session = session;
             this.encryptedToken = encryptedToken;
         }
@@ -945,24 +1019,36 @@ public class C2SSessionManager {
             return verifiedSequencer;
         }
 
-        long getLogicWorldGuid() {
-            return logicWorldSessionInfo.logicWorldGuid;
+        long getLocalGuid() {
+            return userInfo.netContext.localGuid();
         }
 
         SessionLifecycleAware<C2SSession> getLifecycleAware() {
-            return logicWorldSessionInfo.lifecycleAware;
+            return lifecycleAware;
         }
 
         ChannelInitializerSupplier getInitializerSupplier() {
-            return logicWorldSessionInfo.initializerSupplier;
+            return initializerSupplier;
         }
 
-        Long2ObjectMap<Promise<RpcResponse>> getRpcListenerMap() {
-            return rpcListenerMap;
+        Long2ObjectMap<RpcPromiseInfo> getRpcPromiseMap() {
+            return rpcPromiseMap;
         }
 
         long nextRequestGuid() {
             return rpcRequestGuidSequencer.incAndGet();
+        }
+    }
+
+    private static class RpcPromiseInfo {
+        /** promise */
+        private final Promise<RpcResponse> rpcPromise;
+        /** rpc超时时间 */
+        private final long timeoutMs;
+
+        private RpcPromiseInfo(Promise<RpcResponse> rpcPromise, long timeoutMs) {
+            this.rpcPromise = rpcPromise;
+            this.timeoutMs = timeoutMs;
         }
     }
 

@@ -1,7 +1,5 @@
 package com.wjybxx.fastjgame.net;
 
-import java.util.function.LongSupplier;
-
 /**
  * 还未发送的单向消息
  *
@@ -19,7 +17,7 @@ public class UnsentOneWayMessage implements UnsentMessage{
 	}
 
 	@Override
-	public NetMessage build(long sequence, LongSupplier rpcRequestGuidSupplier) {
+	public NetMessage build(long sequence) {
 		return new OneWayMessage(sequence, message);
 	}
 }

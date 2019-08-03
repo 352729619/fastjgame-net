@@ -23,6 +23,7 @@
  long  8字节     ack              我收到的最大消息号(捎带确认的ack)
  long  8字节     sequence         这是我发送的第几个包/帧。
 
+ byte  1字节     sync             是否是同步rpc调用，表示加急(不缓存)
  long  8字节     requestGuid      请求id
  int   4字节     messageId        协议id
  bytes 字节数组   messageBytes     协议的具体内容

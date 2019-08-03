@@ -19,20 +19,27 @@ package com.wjybxx.fastjgame.net;
 /**
  * 业务逻辑消息处理器，包括单向消息，rpc请求
  *
- * @param <T> 消息类型
  * @author wjybxx
  * @version 1.0
  * date - 2019/4/27 22:05
  * github - https://github.com/hl845740757
  */
-@FunctionalInterface
-public interface MessageHandler<T> {
+public interface MessageHandler {
 
     /**
-     * 处理该会话发来的消息
+     * 处理该会话发来单向的消息
      * @param session 会话信息
      * @param message 业务逻辑消息
+     * @throws Exception error
      */
-    void handle(Session session, T message) throws Exception;
+    void onMessage(Session session, Object message) throws Exception;
+
+    /**
+     * 处理该会话发来的Rpc请求
+     * @param session 会话信息
+     * @param request rpc请求
+     * @throws Exception error
+     */
+    void onRpcRequest(Session session, Object request) throws Exception;
 
 }

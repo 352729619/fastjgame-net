@@ -1,7 +1,5 @@
 package com.wjybxx.fastjgame.net;
 
-import java.util.function.LongSupplier;
-
 /**
  * 未发送的消息。
  * Q: 为什么要有这样一个抽象？
@@ -21,8 +19,7 @@ public interface UnsentMessage {
 	 * 该方法只会被调用一次，会在将要发送的时候调用。
 	 *
 	 * @param sequence 该包指定的编号，消息的序号必须为该编号。
-	 * @param rpcRequestGuidSupplier 获取rpc请求编号的提供者
 	 * @return 用于真正发送的消息体结构。
 	 */
-	NetMessage build(long sequence, LongSupplier rpcRequestGuidSupplier);
+	NetMessage build(long sequence);
 }

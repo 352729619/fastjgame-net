@@ -53,7 +53,7 @@ public class HttpClientManager extends AbstractThreadLifeCycleHelper {
 
     @Inject
     public HttpClientManager(NetConfigManager netConfigManager) {
-        okHttpClient=new OkHttpClient.Builder()
+        okHttpClient = new OkHttpClient.Builder()
                 .callTimeout(netConfigManager.httpRequestTimeout(), TimeUnit.SECONDS)
                 .build();
     }
