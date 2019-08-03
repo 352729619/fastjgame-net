@@ -108,7 +108,7 @@ public class NetEventLoopTest {
                 p_center_scene.p_center_cross_scene_hello hello = (p_center_scene.p_center_cross_scene_hello) request;
                 System.out.println("onRpcRequest: " + request);
                 // 再发回去
-                responseChannel.writeAndFlush(new RpcResponse(RpcResultCode.SUCCESS, hello));
+                responseChannel.write(new RpcResponse(RpcResultCode.SUCCESS, hello));
             }
         }
     }

@@ -16,6 +16,8 @@
 
 package com.wjybxx.fastjgame.net;
 
+import com.wjybxx.fastjgame.annotation.UnstableApi;
+
 /**
  * 返回rpc结果的通道
  * @author houlei
@@ -31,10 +33,4 @@ public interface RpcResponseChannel {
 	 */
 	void write(RpcResponse rpcResponse);
 
-	/**
-	 * 返回rpc调用结果，立即发送，不存储在缓存中。
-	 * 注意：该方法仅能调用一次，多次调用将抛出异常。
-	 * @param rpcResponse rpc调用结果
-	 */
-	void writeAndFlush(RpcResponse rpcResponse);
 }

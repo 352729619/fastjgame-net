@@ -788,7 +788,7 @@ public class C2SSessionManager {
             if (isNeedSendAckPing()){
                 messageQueue.getNeedSendQueue().add(new UnsentAckPingPong());
                 hasPingMessage=true;
-                logger.debug("send ack ping");
+                logger.info("send ack ping");
             }
 
             // 有待发送的消息则发送
@@ -886,7 +886,7 @@ public class C2SSessionManager {
         protected void onRcvServerAckPong(Channel eventChannel, AckPingPongEventParam ackPongParam) {
             hasPingMessage = false;
             ifSequenceAndAckOk(ackPongParam.messageTO(), ConcurrentUtils.NO_OP_TASK);
-            logger.debug("send ack pong");
+            logger.info("send ack pong");
         }
 
         @Override
