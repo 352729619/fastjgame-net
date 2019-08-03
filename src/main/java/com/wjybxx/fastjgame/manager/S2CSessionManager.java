@@ -115,6 +115,9 @@ public class S2CSessionManager {
                                  SessionLifecycleAware<S2CSession> lifecycleAware,
                                  MessageHandler messageHandler) throws BindException {
 
+        // 由于是监听方，因此方法参数是针对该用户的所有客户端的
+
+
         createLogicWorldSessionInfo(netContext, localAddress, initializerSupplier, lifecycleAware, messageHandler);
         HostAndPort localAddress = acceptManager.bindRange(outer, portRange, initializerSupplier.get());
 

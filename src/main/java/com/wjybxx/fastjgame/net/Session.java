@@ -22,6 +22,9 @@ package com.wjybxx.fastjgame.net;
  * Q:为何抽象层没有提供address之类的信息？
  * A:因为底层会自动处理断线重连等等，这些信息可能会变化，暂时不提供。
  *
+ * 注意：特定的 localGuid 和 remoteGuid 只能建立一个链接！！！它俩确定唯一的一个session。
+ * 并不支持在不同的端口的上以相同的id再建立连接。
+ *
  * @author wjybxx
  * @version 1.0
  * date - 2019/7/29

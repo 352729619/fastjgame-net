@@ -119,7 +119,7 @@ public class C2SSessionManager {
     }
 
     /**
-     * 注册一个服务器
+     * 链接到远程。
      * @param netContext 本地信息
      * @param serverGuid 在登录服或别处获得的serverGuid
      * @param serverType 服务器类型
