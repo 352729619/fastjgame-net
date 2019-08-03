@@ -36,7 +36,12 @@ import java.io.IOException;
 public interface MessageSerializer {
 
     /**
-     * 可能需要根据消息映射某些初始化操作，以优化某些处理等等
+     * 可能需要根据消息映射某些初始化操作，以优化某些处理等等。
+     * @apiNote
+     * 1. 该方法不要手动调用，否则可能导致线程安全问题！
+     * 2. 该方法必须完成所有可能使用到的信息的初始化，不要做延迟初始化等等！
+     * 满足以上两点规则的话，该对象可以安全的共享。
+     *
      * happens-before {@link #serialize(Object)} and {@link #deserialize(Class, byte[])}
      */
     void init(MessageMapper messageMapper) throws Exception;

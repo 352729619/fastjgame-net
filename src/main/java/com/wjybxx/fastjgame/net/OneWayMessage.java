@@ -16,6 +16,8 @@
 
 package com.wjybxx.fastjgame.net;
 
+import javax.annotation.concurrent.NotThreadSafe;
+
 /**
  * 单向消息，用于与玩家通信，或服务器内的单向通知。
  *
@@ -24,6 +26,7 @@ package com.wjybxx.fastjgame.net;
  * date - 2019/7/31
  * github - https://github.com/hl845740757
  */
+@NotThreadSafe
 public class OneWayMessage extends NetMessage{
 
 	/**
@@ -38,7 +41,7 @@ public class OneWayMessage extends NetMessage{
 	}
 
 	@Override
-	public MessageTO build(long ack) {
+	public OneWayMessageTO build(long ack) {
 		return new OneWayMessageTO(ack, getSequence(), message);
 	}
 }

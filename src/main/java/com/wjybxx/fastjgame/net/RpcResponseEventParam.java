@@ -31,15 +31,15 @@ public class RpcResponseEventParam extends MessageEventParam{
 	/**
 	 * 服务器回话id，从channelHandler上取出来的
 	 */
-	private final long serverGuid;
+	private final long remoteGuid;
 	/**
 	 * Rpc响应内容
 	 */
 	private final RpcResponseMessageTO responseMessageTO;
 
-	public RpcResponseEventParam(Channel channel, long logicWorldGuid, long serverGuid, RpcResponseMessageTO responseMessageTO) {
-		super(logicWorldGuid, channel);
-		this.serverGuid = serverGuid;
+	public RpcResponseEventParam(Channel channel, long localGuid, long remoteGuid, RpcResponseMessageTO responseMessageTO) {
+		super(channel, localGuid);
+		this.remoteGuid = remoteGuid;
 		this.responseMessageTO = responseMessageTO;
 	}
 
@@ -49,7 +49,7 @@ public class RpcResponseEventParam extends MessageEventParam{
 	}
 
 	@Override
-	public long remoteLogicWorldGuid() {
-		return serverGuid;
+	public long remoteGuid() {
+		return remoteGuid;
 	}
 }

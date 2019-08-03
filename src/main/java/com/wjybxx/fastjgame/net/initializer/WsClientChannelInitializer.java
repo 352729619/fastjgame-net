@@ -47,8 +47,8 @@ import java.net.URISyntaxException;
 @ThreadSafe
 public class WsClientChannelInitializer extends ChannelInitializer<SocketChannel> {
 
-    /** 是哪一个logicWorld发起的连接 */
-    private final long logicWorldGuid;
+    /** 本地发起连接的角色guid */
+    private final long localGuid;
     private final long serverGuid;
     /**
      * 触发升级为websocket的url (eg: http://localhost:8088/ws)
@@ -58,11 +58,11 @@ public class WsClientChannelInitializer extends ChannelInitializer<SocketChannel
     private final NetEventManager netEventManager;
     private final CodecHelper codecHelper;
 
-    public WsClientChannelInitializer(long logicWorldGuid, long serverGuid,
+    public WsClientChannelInitializer(long localGuid, long serverGuid,
                                       String websocketUrl, int maxFrameLength,
                                       NetEventManager netEventManager,
                                       CodecHelper codecHelper) {
-        this.logicWorldGuid = logicWorldGuid;
+        this.localGuid = localGuid;
         this.serverGuid = serverGuid;
         this.websocketUrl = websocketUrl;
         this.maxFrameLength = maxFrameLength;
@@ -114,6 +114,6 @@ public class WsClientChannelInitializer extends ChannelInitializer<SocketChannel
      */
     private void appendCustomProtocolCodec(ChannelPipeline pipeline) {
         pipeline.addLast(new LengthFieldBasedFrameDecoder(maxFrameLength,0,4,0,4));
-        pipeline.addLast(new ClientCodec(codecHelper, logicWorldGuid, serverGuid, netEventManager));
+        pipeline.addLast(new ClientCodec(codecHelper, localGuid, serverGuid, netEventManager));
     }
 }

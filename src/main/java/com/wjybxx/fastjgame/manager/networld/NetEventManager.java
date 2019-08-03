@@ -17,16 +17,14 @@
 package com.wjybxx.fastjgame.manager.networld;
 
 import com.google.inject.Inject;
-import com.wjybxx.fastjgame.manager.GameEventLoopManager;
 import com.wjybxx.fastjgame.net.*;
-import com.wjybxx.fastjgame.world.NetWorld;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.concurrent.ThreadSafe;
 
 /**
- * 网络事件管理器，用于{@link NetWorld}管理网络事件（接收网络消息）。
+ * 网络事件管理器。
  *
  * @author wjybxx
  * @version 1.0
@@ -39,14 +37,11 @@ public class NetEventManager {
 	private static final Logger logger = LoggerFactory.getLogger(NetEventManager.class);
 
 	private final S2CSessionManager s2CSessionManager;
-	// 网络事件关联到一堆session管理
-	private final GameEventLoopManager gameEventLoopManager;
 	private final C2SSessionManager c2SSessionManager;
 	private final HttpSessionManager httpSessionManager;
 
 	@Inject
-	public NetEventManager(GameEventLoopManager gameEventLoopManager, S2CSessionManager s2CSessionManager, C2SSessionManager c2SSessionManager, HttpSessionManager httpSessionManager) {
-		this.gameEventLoopManager = gameEventLoopManager;
+	public NetEventManager(S2CSessionManager s2CSessionManager, C2SSessionManager c2SSessionManager, HttpSessionManager httpSessionManager) {
 		this.s2CSessionManager = s2CSessionManager;
 		this.c2SSessionManager = c2SSessionManager;
 		this.httpSessionManager = httpSessionManager;

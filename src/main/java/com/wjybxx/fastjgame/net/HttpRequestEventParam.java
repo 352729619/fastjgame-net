@@ -27,26 +27,23 @@ import io.netty.channel.Channel;
  */
 public class HttpRequestEventParam implements NetEventParam{
 
-	/** 该事件对应哪一个logicWorld */
-	private final long logicWorldGuid;
-
 	private final Channel channel;
-
+	private final long localGuid;
 	private final HttpRequestTO httpRequestTO;
 
-	public HttpRequestEventParam(long logicWorldGuid, Channel channel, HttpRequestTO httpRequestTO) {
-		this.logicWorldGuid = logicWorldGuid;
+	public HttpRequestEventParam(Channel channel, long localGuid, HttpRequestTO httpRequestTO) {
+		this.localGuid = localGuid;
 		this.channel = channel;
 		this.httpRequestTO = httpRequestTO;
 	}
 
 	@Override
-	public long logicWorldGuid() {
-		return logicWorldGuid;
+	public long localGuid() {
+		return localGuid;
 	}
 
 	@Override
-	public long remoteLogicWorldGuid() {
+	public long remoteGuid() {
 		throw new UnsupportedOperationException();
 	}
 

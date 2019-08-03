@@ -42,7 +42,6 @@ public class NetModule extends AbstractModule {
 		bind(HttpSessionManager.class).in(Singleton.class);
 		bind(NetEventManager.class).in(Singleton.class);
 		bind(NettyThreadManager.class).in(Singleton.class);
-		bind(RpcManager.class).in(Singleton.class);
 		bind(AcceptManager.class).in(Singleton.class);
 		bind(TokenManager.class).in(Singleton.class);
 
@@ -51,8 +50,5 @@ public class NetModule extends AbstractModule {
 
 		// 管理logicWorld信息
 		bind(LogicWorldManager.class).in(Singleton.class);
-
-		// netWorld实现
-		bind(NetWorld.class).to(NetWorldImp.class).in(Singleton.class);
 	}
 }

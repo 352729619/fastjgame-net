@@ -101,7 +101,7 @@ public class HttpRequestParamDecoder extends SimpleChannelInboundHandler<FullHtt
             }
         }
         HttpRequestTO httpRequestTO = new HttpRequestTO(path,new MapConfigWrapper(paramsMap));
-        HttpRequestEventParam httpRequestEventParam = new HttpRequestEventParam(logicWorldGuid, ctx.channel(), httpRequestTO);
+        HttpRequestEventParam httpRequestEventParam = new HttpRequestEventParam(ctx.channel(), logicWorldGuid, httpRequestTO);
         netEventManager.publishEvent(NetEventType.HTTP_REQUEST, httpRequestEventParam);
     }
 

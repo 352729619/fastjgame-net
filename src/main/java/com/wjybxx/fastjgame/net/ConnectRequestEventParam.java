@@ -19,6 +19,7 @@ package com.wjybxx.fastjgame.net;
 import io.netty.channel.Channel;
 
 /**
+ * 连接请求事件参数
  * @author wjybxx
  * @version 1.0
  * date - 2019/8/2
@@ -26,12 +27,12 @@ import io.netty.channel.Channel;
  */
 public class ConnectRequestEventParam implements NetEventParam{
 
-    private final long logicWorldGuid;
     private final Channel channel;
+    private final long localGuid;
     private final ConnectRequestTO connectRequestTO;
 
-    public ConnectRequestEventParam(long logicWorldGuid, Channel channel, ConnectRequestTO connectRequestTO) {
-        this.logicWorldGuid = logicWorldGuid;
+    public ConnectRequestEventParam(Channel channel, long localGuid, ConnectRequestTO connectRequestTO) {
+        this.localGuid = localGuid;
         this.channel = channel;
         this.connectRequestTO = connectRequestTO;
     }
@@ -41,7 +42,7 @@ public class ConnectRequestEventParam implements NetEventParam{
     }
 
     public long getServerGuid() {
-        return logicWorldGuid;
+        return localGuid;
     }
 
     public long getAck() {
@@ -61,17 +62,18 @@ public class ConnectRequestEventParam implements NetEventParam{
     }
 
     @Override
-    public long logicWorldGuid() {
-        return logicWorldGuid;
-    }
-
-    @Override
-    public long remoteLogicWorldGuid() {
-        return connectRequestTO.getClientGuid();
-    }
-
-    @Override
     public Channel channel() {
         return channel;
     }
+
+    @Override
+    public long localGuid() {
+        return localGuid;
+    }
+
+    @Override
+    public long remoteGuid() {
+        return connectRequestTO.getClientGuid();
+    }
+
 }

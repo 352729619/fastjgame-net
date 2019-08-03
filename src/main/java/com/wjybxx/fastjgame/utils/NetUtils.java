@@ -43,15 +43,15 @@ public class NetUtils {
     /**
      * 本机内网地址
      */
-    private static final String localIp=findLocalIp();
+    private static final String localIp = findLocalIp();
     /**
      * 本机外网地址
      */
-    private static final String outerIp=findOuterIp();
+    private static final String outerIp = findOuterIp();
 
     static {
-        logger.info("localIp {}",localIp);
-        logger.info("outerIp {}",outerIp);
+        logger.info("localIp {}", localIp);
+        logger.info("outerIp {}", outerIp);
     }
 
     // close

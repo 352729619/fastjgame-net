@@ -29,24 +29,33 @@ import io.netty.channel.Channel;
  */
 public abstract class MessageEventParam implements NetEventParam{
 
-    /** 该事件对应本地哪一个logicWorld */
-    private final long logicWorldGuid;
     /** 该事件对应的channel */
     private final Channel channel;
 
-    protected MessageEventParam(long logicWorldGuid, Channel channel) {
-        this.logicWorldGuid = logicWorldGuid;
-        this.channel = channel;
-    }
+    /** 该事件关联的本地角色guid */
+    private final long localGuid;
 
-    @Override
-    public final long logicWorldGuid() {
-        return logicWorldGuid;
+    protected MessageEventParam(Channel channel, long localGuid) {
+        this.localGuid = localGuid;
+        this.channel = channel;
     }
 
     @Override
     public final Channel channel() {
         return channel;
+    }
+
+    @Override
+    public final long localGuid() {
+        return localGuid;
+    }
+
+    public final long getAck() {
+        return messageTO().getAck();
+    }
+
+    public final long getSequence() {
+        return messageTO().getSequence();
     }
 
     /**

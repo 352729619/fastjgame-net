@@ -19,11 +19,12 @@ package com.wjybxx.fastjgame.manager.networld;
 import com.google.inject.Inject;
 import com.wjybxx.fastjgame.concurrent.Promise;
 import com.wjybxx.fastjgame.manager.AcceptManager;
-import com.wjybxx.fastjgame.manager.GameEventLoopManager;
 import com.wjybxx.fastjgame.manager.NetConfigManager;
 import com.wjybxx.fastjgame.manager.NetTimeManager;
-import com.wjybxx.fastjgame.manager.logicworld.MessageDispatchManager;
-import com.wjybxx.fastjgame.misc.*;
+import com.wjybxx.fastjgame.misc.HostAndPort;
+import com.wjybxx.fastjgame.misc.IntSequencer;
+import com.wjybxx.fastjgame.misc.LogicWorldInNetWorldInfo;
+import com.wjybxx.fastjgame.misc.LongSequencer;
 import com.wjybxx.fastjgame.net.*;
 import com.wjybxx.fastjgame.net.initializer.ChannelInitializerFactory;
 import com.wjybxx.fastjgame.net.initializer.ChannelInitializerSupplier;
@@ -71,19 +72,16 @@ public class C2SSessionManager {
     private final NetConfigManager netConfigManager;
     private final AcceptManager acceptManager;
     private final NetTimeManager netTimeManager;
-    /** NetWorld的EventLoop持有者 */
-    private final GameEventLoopManager gameEventLoopManager;
     private final LogicWorldManager logicWorldManager;
     /** 所有logicWorld的会话信息 */
     private final Long2ObjectMap<LogicWorldSessionInfo> logicWorldSessionInfoMap = new Long2ObjectOpenHashMap<>();
 
     @Inject
     public C2SSessionManager(NetConfigManager netConfigManager, AcceptManager acceptManager, NetTimeManager netTimeManager,
-                             GameEventLoopManager gameEventLoopManager, LogicWorldManager logicWorldManager) {
+                             LogicWorldManager logicWorldManager) {
         this.netConfigManager = netConfigManager;
         this.acceptManager = acceptManager;
         this.netTimeManager = netTimeManager;
-        this.gameEventLoopManager = gameEventLoopManager;
         this.logicWorldManager = logicWorldManager;
     }
 
@@ -116,7 +114,6 @@ public class C2SSessionManager {
      */
     @Nullable
     private SessionWrapper getSessionWrapper(long logicWorldGuid, long serverGuid){
-        assert gameEventLoopManager.inEventLoop();
         LogicWorldSessionInfo logicWorldSessionInfo = logicWorldSessionInfoMap.get(logicWorldGuid);
         if (null == logicWorldSessionInfo) {
             return null;
@@ -126,7 +123,7 @@ public class C2SSessionManager {
 
     /**
      * 注册一个服务器
-     * @param logicWorldGuid 发起连接请求的logicWorld标识
+     * @param localGuid 发起连接请求的logicWorld标识
      * @param serverGuid 在登录服或别处获得的serverGuid
      * @param serverType 服务器类型
      * @param hostAndPort 服务器地址
@@ -134,22 +131,22 @@ public class C2SSessionManager {
      * @param lifecycleAware 作为客户端，链接不同的服务器时，可能有不同的生命周期事件处理
      * @param encryptedLoginToken 在登录服或别处获得的登录用的token
      */
-    public C2SSession connect(long logicWorldGuid,
+    public C2SSession connect(long localGuid,
                               long serverGuid, RoleType serverType, HostAndPort hostAndPort,
                               @Nonnull ChannelInitializerSupplier initializerSupplier,
                               @Nonnull SessionLifecycleAware<C2SSession> lifecycleAware,
                               @Nonnull byte[] encryptedLoginToken) throws IllegalArgumentException{
         // 已注册
-        if (getSessionWrapper(logicWorldGuid, serverGuid) != null){
+        if (getSessionWrapper(localGuid, serverGuid) != null){
             throw new IllegalArgumentException("serverGuid " + serverGuid+ " registered before.");
         }
 
-        LogicWorldSessionInfo logicWorldSessionInfo = logicWorldSessionInfoMap.computeIfAbsent(logicWorldGuid, k -> {
-            return new LogicWorldSessionInfo(logicWorldGuid, initializerSupplier, lifecycleAware);
+        LogicWorldSessionInfo logicWorldSessionInfo = logicWorldSessionInfoMap.computeIfAbsent(localGuid, k -> {
+            return new LogicWorldSessionInfo(localGuid, initializerSupplier, lifecycleAware);
         });
 
         // 创建会话，尚未激活
-        C2SSession session = new C2SSession(serverGuid, serverType, hostAndPort);
+        C2SSession session = new C2SSession(localGuid, localRole, serverGuid, serverType, hostAndPort);
         SessionWrapper sessionWrapper = new SessionWrapper(logicWorldSessionInfo, session, encryptedLoginToken);
 
         logicWorldSessionInfo.sessionWrapperMap.put(session.getServerGuid(), sessionWrapper);
@@ -169,7 +166,7 @@ public class C2SSessionManager {
         ifSessionOk(logicWorldGuid, serverGuid, sessionWrapper -> {
             MessageQueue messageQueue = sessionWrapper.getMessageQueue();
             // 添加到待发送队列
-            OneWayMessage logicMessage = new OneWayMessage(messageQueue.nextSequence(), message);
+            UnsentOneWayMessage logicMessage = new UnsentOneWayMessage(message);
             messageQueue.getNeedSendQueue().addLast(logicMessage);
         });
     }
@@ -199,8 +196,8 @@ public class C2SSessionManager {
         ifSessionOk(logicWorldGuid, serverGuid, sessionWrapper -> {
             MessageQueue messageQueue = sessionWrapper.getMessageQueue();
             // 添加到待发送队列
-            RpcResponseMessage logicMessage = new RpcResponseMessage(messageQueue.nextSequence(), requestGuid, response);
-            messageQueue.getNeedSendQueue().addLast(logicMessage);
+            UnsentRpcResponse unsentRpcResponse = new UnsentRpcResponse(requestGuid, response);
+            messageQueue.getNeedSendQueue().addLast(unsentRpcResponse);
         });
     }
 
@@ -257,7 +254,7 @@ public class C2SSessionManager {
     // region 事件处理
 
     private <T extends NetEventParam> void ifEventChannelOK(Channel eventChannel, T eventParam, Consumer<C2SSessionState> then){
-        SessionWrapper sessionWrapper = getSessionWrapper(eventParam.logicWorldGuid(), eventParam.remoteLogicWorldGuid());
+        SessionWrapper sessionWrapper = getSessionWrapper(eventParam.localGuid(), eventParam.remoteGuid());
         // 非法的channel
         if (sessionWrapper==null){
             NetUtils.closeQuietly(eventChannel);
@@ -282,7 +279,7 @@ public class C2SSessionManager {
             // 无论什么状态，只要当前channel收到token验证失败，都关闭session(移除会话)，它意味着服务器通知关闭。
             if (!responseParam.isSuccess()){
                 NetUtils.closeQuietly(eventChannel);
-                removeSession(responseParam.logicWorldGuid(), responseParam.getServerGuid(),"token check failed.");
+                removeSession(responseParam.localGuid(), responseParam.getServerGuid(),"token check failed.");
                 return;
             }
             // token验证成功

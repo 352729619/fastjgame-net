@@ -33,15 +33,15 @@ public class AckPingPongEventParam extends MessageEventParam {
     /**
      * 会话唯一id，对方唯一id。
      */
-    private final long remoteLogicWorldGuid;
+    private final long remoteGuid;
     /**
      * ping包
      */
     private final AckPingPongMessageTO pingPongMessageTO;
 
-    public AckPingPongEventParam(Channel channel, long logicWorldGuid, long remoteLogicWorldGuid, AckPingPongMessageTO pingPongMessageTO) {
-        super(logicWorldGuid, channel);
-        this.remoteLogicWorldGuid = remoteLogicWorldGuid;
+    public AckPingPongEventParam(Channel channel, long localGuid, long remoteGuid, AckPingPongMessageTO pingPongMessageTO) {
+        super(channel, localGuid);
+        this.remoteGuid = remoteGuid;
         this.pingPongMessageTO = pingPongMessageTO;
     }
 
@@ -50,7 +50,7 @@ public class AckPingPongEventParam extends MessageEventParam {
     }
 
     @Override
-    public long remoteLogicWorldGuid() {
-        return remoteLogicWorldGuid;
+    public long remoteGuid() {
+        return remoteGuid;
     }
 }

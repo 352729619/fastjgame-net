@@ -30,23 +30,20 @@ import javax.annotation.concurrent.Immutable;
 @Immutable
 public class ConnectResponseEventParam implements NetEventParam{
 
-    /** 该事件对应哪一个logicWorld */
-    private final long logicWorldGuid;
-    /**
-     * 发起请求的channel
-     */
+    /** 发起请求的channel */
     private final Channel channel;
-    /**
-     * 服务端guid
-     */
+
+    /** 该事件关联的本地角色guid */
+    private final long localGuid;
+
+    /** 服务端guid */
     private final long serverGuid;
-    /**
-     * 响应参数
-     */
+
+    /** 响应参数 */
     private final ConnectResponseTO responseTO;
 
-    public ConnectResponseEventParam(long logicWorldGuid, Channel channel, long serverGuid, ConnectResponseTO responseTO) {
-        this.logicWorldGuid = logicWorldGuid;
+    public ConnectResponseEventParam(Channel channel, long localGuid, long serverGuid, ConnectResponseTO responseTO) {
+        this.localGuid = localGuid;
         this.channel = channel;
         this.serverGuid = serverGuid;
         this.responseTO = responseTO;
@@ -77,17 +74,17 @@ public class ConnectResponseEventParam implements NetEventParam{
     }
 
     @Override
-    public long logicWorldGuid() {
-        return logicWorldGuid;
-    }
-
-    @Override
     public Channel channel() {
         return channel;
     }
 
     @Override
-    public long remoteLogicWorldGuid() {
+    public long localGuid() {
+        return localGuid;
+    }
+
+    @Override
+    public long remoteGuid() {
         return serverGuid;
     }
 }

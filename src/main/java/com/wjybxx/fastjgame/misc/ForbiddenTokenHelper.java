@@ -84,7 +84,7 @@ public final class ForbiddenTokenHelper {
 
     /**
      * 禁用该时间戳及之前的token
-     * @param clientGuid remoteLogicWorldGuid
+     * @param clientGuid remoteGuid
      * @param tokenCreateSecTime include
      */
     private void forbiddenToken(long clientGuid, int tokenCreateSecTime){

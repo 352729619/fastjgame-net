@@ -16,6 +16,7 @@
 
 package com.wjybxx.fastjgame.manager;
 
+import com.google.inject.Inject;
 import com.wjybxx.fastjgame.trigger.SystemTimeHelper;
 
 /**
@@ -26,24 +27,10 @@ import com.wjybxx.fastjgame.trigger.SystemTimeHelper;
  * date - 2019/8/3
  * github - https://github.com/hl845740757
  */
-public final class NetTimeManager {
+public final class NetTimeManager extends SystemTimeHelper{
 
-    private static final ThreadLocal<SystemTimeHelper> netTime = ThreadLocal.withInitial(() -> {
-        SystemTimeHelper timeHelper = new SystemTimeHelper();
-        timeHelper.changeToCacheStrategy();
-        return timeHelper;
-    });
-
-    public static long getSystemMillTime() {
-        return netTime.get().getSystemMillTime();
+    @Inject
+    public NetTimeManager() {
+        changeToCacheStrategy();
     }
-
-    public static int getSystemSecTime() {
-        return netTime.get().getSystemSecTime();
-    }
-
-    public static void setTime(long time) {
-        netTime.get().update(time);
-    }
-
 }

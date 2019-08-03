@@ -23,6 +23,7 @@ import javax.annotation.concurrent.Immutable;
 /**
  * 网络事件参数，提供统一的抽象(窄)视图。
  * 子类实现必须是不可变对象，以保证线程安全性。
+ *
  * @author wjybxx
  * @version 1.0
  * date - 2019/4/27 9:16
@@ -31,20 +32,22 @@ import javax.annotation.concurrent.Immutable;
 public interface NetEventParam {
 
     /**
-     * 该事件对应哪一个logicWorld.
-     * @return localLogicWorldGuid
-     */
-    long logicWorldGuid();
-
-    /**
-     * 获取事件所属的sessionId。
-     * @return remoteLogicWorldGuid
-     */
-    long remoteLogicWorldGuid();
-
-    /**
      * 获取网络事件对于的channel
      * @return eventChannel
      */
     Channel channel();
+
+    /**
+     * 本地节点的guid.
+     * @return long
+     */
+    long localGuid();
+
+    /**
+     * 远程节点的guid
+     * @return long
+     */
+    long remoteGuid();
+
+
 }

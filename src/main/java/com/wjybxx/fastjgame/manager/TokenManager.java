@@ -20,7 +20,9 @@ import com.google.inject.Inject;
 import com.wjybxx.fastjgame.net.RoleType;
 import com.wjybxx.fastjgame.net.Token;
 import com.wjybxx.fastjgame.net.TokenEncryptStrategy;
-import com.wjybxx.fastjgame.utils.JsonUtils;
+import com.wjybxx.fastjgame.utils.NetUtils;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -98,7 +100,8 @@ public class TokenManager {
      * @return Token
      */
     public Token newLoginToken(long clientGuid, RoleType clientRoleType, long serverGuid, RoleType serverRoleType){
-        return new Token(clientGuid, clientRoleType, serverGuid, serverRoleType, INIT_VERIFIED_TIMES, netTimeManager.getSystemSecTime());
+        return new Token(clientGuid, clientRoleType, serverGuid, serverRoleType,
+                INIT_VERIFIED_TIMES, netTimeManager.getSystemSecTime());
     }
 
     /**
@@ -111,8 +114,6 @@ public class TokenManager {
 
     /**
      * 是否是登录token
-     * @param token
-     * @return
      */
     public boolean isLoginToken(Token token) {
         return token.getVerifiedTimes() == INIT_VERIFIED_TIMES;
@@ -120,17 +121,13 @@ public class TokenManager {
 
     /**
      * 登录token是否超时了
-     * @param token
-     * @return
      */
     public boolean isLoginTokenTimeout(Token token){
         return netTimeManager.getSystemSecTime() > token.getCreateSecTime() + netConfigManager.loginTokenTimeout();
     }
 
     /**
-     * 登录成功Token
-     * @param token
-     * @return
+     * 创建一个登录成功Token
      */
     public Token newLoginSuccessToken(Token token){
         // 默认的验证次数不一定是0，不能简单的+1
@@ -161,7 +158,7 @@ public class TokenManager {
 
     /**
      * 加密token，这里最好有自己的实现。
-     * @return
+     * @return bytes
      */
     public byte[] encryptToken(Token token){
         return tokenEncryptStrategy.encryptToken(token);
@@ -170,7 +167,7 @@ public class TokenManager {
     /**
      * 解密失败则返回null
      * @param encryptedTokenBytes 加密后的token字节数组
-     * @return
+     * @return token
      */
     public Token decryptToken(byte[] encryptedTokenBytes){
         try {
@@ -188,28 +185,56 @@ public class TokenManager {
 
         @Override
         public byte[] encryptToken(Token token) {
-            byte[] msgBytes = JsonUtils.toJsonBytes(token);
-            return xorByteArray(msgBytes, netConfigManager.getTokenKeyBytes());
+            byte[] tokenBytes = encodeToken(token);
+            return xorByteArray(tokenBytes, netConfigManager.getTokenKeyBytes());
         }
 
         @Override
         public Token decryptToken(byte[] encryptedTokenBytes) throws Exception {
-            byte[] msgBytes=xorByteArray(encryptedTokenBytes, netConfigManager.getTokenKeyBytes());
-            return JsonUtils.parseJsonBytes(msgBytes, Token.class);
+            byte[] tokenBytes = xorByteArray(encryptedTokenBytes, netConfigManager.getTokenKeyBytes());
+            return decodeToken(tokenBytes);
         }
+    }
 
-        /**
-         * 异或两个字节数组，并返回一个新的字节数组，其长度为msgBytes的长度
-         * @param msgBytes 消息对应的字节数组
-         * @param keyBytes 用于加密的字节数组
-         * @return 加密后的字节数组
-         */
-        private byte[] xorByteArray(byte[] msgBytes,byte[] keyBytes){
-            byte[] resultBytes = new byte[msgBytes.length];
-            for (int index=0;index<msgBytes.length;index++){
-                resultBytes[index]= (byte)(msgBytes[index] ^ keyBytes[index%keyBytes.length]);
-            }
-            return resultBytes;
+    /**
+     * 异或两个字节数组，并返回一个新的字节数组，其长度为msgBytes的长度
+     * @param msgBytes 消息对应的字节数组
+     * @param keyBytes 用于加密的字节数组
+     * @return 加密后的字节数组
+     */
+    private static byte[] xorByteArray(byte[] msgBytes,byte[] keyBytes){
+        byte[] resultBytes = new byte[msgBytes.length];
+        for (int index=0;index<msgBytes.length;index++){
+            resultBytes[index]= (byte)(msgBytes[index] ^ keyBytes[index%keyBytes.length]);
         }
+        return resultBytes;
+    }
+    /** 编码token */
+    private static byte[] encodeToken(Token token) {
+        final int contentLength = 8 + 4 + 8 + 4 + 4 + 4;
+        ByteBuf byteBuf = Unpooled.buffer(contentLength);
+        byteBuf.writeLong(token.getClientGuid());
+        byteBuf.writeInt(token.getClientRoleType().getNumber());
+
+        byteBuf.writeLong(token.getServerGuid());
+        byteBuf.writeInt(token.getServerRoleType().getNumber());
+
+        byteBuf.writeInt(token.getVerifiedTimes());
+        byteBuf.writeInt(token.getCreateSecTime());
+
+        return NetUtils.readRemainBytes(byteBuf);
+    }
+    /** 解码token */
+    private static Token decodeToken(byte[] tokenBytes) {
+        ByteBuf byteBuf = Unpooled.wrappedBuffer(tokenBytes);
+        long clientGuid = byteBuf.readLong();
+        RoleType clientRolType = RoleType.forNumber(byteBuf.readInt());
+
+        long serverGuid = byteBuf.readLong();
+        RoleType serverRoleType = RoleType.forNumber(byteBuf.readInt());
+
+        int verifiedTimes = byteBuf.readInt();
+        int createSecTime = byteBuf.readInt();
+        return new Token(clientGuid, clientRolType, serverGuid, serverRoleType, verifiedTimes, createSecTime);
     }
 }

@@ -16,7 +16,6 @@
 
 package com.wjybxx.fastjgame.net;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.wjybxx.fastjgame.manager.TokenManager;
 
 /**
@@ -29,7 +28,7 @@ import com.wjybxx.fastjgame.manager.TokenManager;
 public class Token {
     // ---------------------不变量--------------------
     /**
-     * 客户端的唯一标识
+     * 客户端的唯一标识(连接的发起方)
      */
     private final long clientGuid;
     /**
@@ -38,7 +37,7 @@ public class Token {
     private final RoleType clientRoleType;
 
     /**
-     * 服务器的唯一标识
+     * 服务器的唯一标识(连接的接收方)
      */
     private final long serverGuid;
     /**
@@ -68,12 +67,9 @@ public class Token {
      * @param verifiedTimes 已验证次数
      * @param createSecTime 创建Token时的时间戳(秒)
      */
-    public Token(@JsonProperty() long clientGuid,
-                 @JsonProperty() RoleType clientRoleType,
-                 @JsonProperty() long serverGuid,
-                 @JsonProperty() RoleType serverRoleType,
-                 @JsonProperty() int verifiedTimes,
-                 @JsonProperty() int createSecTime) {
+    public Token(long clientGuid, RoleType clientRoleType,
+                 long serverGuid, RoleType serverRoleType,
+                 int verifiedTimes, int createSecTime) {
 
         this.clientGuid = clientGuid;
         this.serverGuid = serverGuid;

@@ -19,7 +19,6 @@ package com.wjybxx.fastjgame.manager.networld;
 import com.google.inject.Inject;
 import com.wjybxx.fastjgame.concurrent.Promise;
 import com.wjybxx.fastjgame.manager.*;
-import com.wjybxx.fastjgame.manager.logicworld.MessageDispatchManager;
 import com.wjybxx.fastjgame.misc.*;
 import com.wjybxx.fastjgame.net.*;
 import com.wjybxx.fastjgame.net.initializer.ChannelInitializerFactory;
@@ -78,21 +77,17 @@ public class S2CSessionManager {
     private final TokenManager tokenManager;
     private final AcceptManager acceptManager;
     private final ForbiddenTokenHelper forbiddenTokenHelper;
-    /** NetWorld的EventLoop持有者 */
-    private final GameEventLoopManager gameEventLoopManager;
     private final LogicWorldManager logicWorldManager;
     /** logicWorld的会话信息 */
     private final Long2ObjectMap<LogicWorldSessionInfo> logicWorldSessionInfoMap = new Long2ObjectOpenHashMap<>();
 
     @Inject
     public S2CSessionManager(NetTimeManager netTimeManager, NetConfigManager netConfigManager, NetTriggerManager netTriggerManager,
-                             TokenManager tokenManager, AcceptManager acceptManager, GameEventLoopManager gameEventLoopManager,
-                             LogicWorldManager logicWorldManager) {
+                             TokenManager tokenManager, AcceptManager acceptManager, LogicWorldManager logicWorldManager) {
         this.netTimeManager = netTimeManager;
         this.netConfigManager = netConfigManager;
         this.tokenManager = tokenManager;
         this.acceptManager = acceptManager;
-        this.gameEventLoopManager = gameEventLoopManager;
         this.logicWorldManager = logicWorldManager;
         this.forbiddenTokenHelper=new ForbiddenTokenHelper(netTimeManager, netTriggerManager, netConfigManager.tokenForbiddenTimeout());
 
@@ -164,7 +159,6 @@ public class S2CSessionManager {
      * @return 如果存在则返回对应的session，否则返回null
      */
     private SessionWrapper getSessionWrapper(long logicWorldGuid, long clientGuid) {
-        assert gameEventLoopManager.inEventLoop();
         LogicWorldSessionInfo logicWorldSessionInfo = logicWorldSessionInfoMap.get(logicWorldGuid);
         if (null == logicWorldSessionInfo) {
             return null;
@@ -244,7 +238,7 @@ public class S2CSessionManager {
 
     /**
      * 请求移除一个会话
-     * @param clientGuid remoteLogicWorldGuid
+     * @param clientGuid remoteGuid
      * @param reason 要是可扩展的，好像只有字符串最合适
      */
     public S2CSession removeSession(long logicWorldGuid, long clientGuid, String reason){
@@ -294,7 +288,7 @@ public class S2CSessionManager {
             return;
         }
         // 服务器会话已经不存这里了(服务器没有监听或已经关闭)
-        if (!logicWorldSessionInfoMap.containsKey(requestParam.logicWorldGuid())) {
+        if (!logicWorldSessionInfoMap.containsKey(requestParam.localGuid())) {
             notifyTokenCheckFailed(channel, requestParam, FailReason.SERVER_NOT_EXIST);
             return;
         }
@@ -314,7 +308,7 @@ public class S2CSessionManager {
             return;
         }
         // 为什么不能在这里更新forbiddenToken? 因为走到这里还不能证明是一个合法的客户端，不能影响合法客户端的数据。
-        SessionWrapper sessionWrapper = getSessionWrapper(requestParam.logicWorldGuid(), requestParam.getClientGuid());
+        SessionWrapper sessionWrapper = getSessionWrapper(requestParam.localGuid(), requestParam.getClientGuid());
         // 不论如何必须是新的channel
         if (isSameChannel(sessionWrapper, channel)){
             notifyTokenCheckFailed(channel, requestParam, FailReason.SAME_CHANNEL);
@@ -372,7 +366,7 @@ public class S2CSessionManager {
     private boolean isRequestMatchToken(ConnectRequestEventParam requestParam, @Nonnull Token token){
         // token不是用于该客户端的
         if (requestParam.getClientGuid() != token.getClientGuid()
-                || requestParam.logicWorldGuid() != token.getServerGuid()){
+                || requestParam.localGuid() != token.getServerGuid()){
             return false;
         }
         // token不是用于该服务器的
@@ -410,14 +404,14 @@ public class S2CSessionManager {
         // 1.会话是有状态的，无法基于旧状态与新状态的客户端通信(ack,sequence)
         // 2.旧的token需要被禁用
         // 3.必须进行通知，需要让逻辑层知道旧连接彻底断开了，可能有额外逻辑
-        removeSession(requestParam.logicWorldGuid(), requestParam.getClientGuid(),"reLogin");
+        removeSession(requestParam.localGuid(), requestParam.getClientGuid(),"reLogin");
 
         // 禁用验证成功的token之前的token(不能放到removeSession之前，会导致覆盖)
         forbiddenTokenHelper.forbiddenPreToken(clientToken);
 
         // 登录成功
-        LogicWorldSessionInfo logicWorldSessionInfo = logicWorldSessionInfoMap.get(requestParam.logicWorldGuid());
-        S2CSession session = new S2CSession(requestParam.getClientGuid(), clientToken.getClientRoleType());
+        LogicWorldSessionInfo logicWorldSessionInfo = logicWorldSessionInfoMap.get(requestParam.localGuid());
+        S2CSession session = new S2CSession(logicWorldSessionInfo.localGuid, logicWorldSessionInfo.localRole, requestParam.getClientGuid(), clientToken.getClientRoleType());
         SessionWrapper sessionWrapper = new SessionWrapper(logicWorldSessionInfo, session);
         logicWorldSessionInfo.sessionWrapperMap.put(requestParam.getClientGuid(),sessionWrapper);
 
@@ -429,7 +423,7 @@ public class S2CSessionManager {
         logger.info("client login success, sessionInfo={}",session);
 
         // 连接建立回调(通知)
-        LogicWorldInNetWorldInfo logicWorldInfo = logicWorldManager.getLogicWorldInfo(logicWorldSessionInfo.logicWorldGuid);
+        LogicWorldInNetWorldInfo logicWorldInfo = logicWorldManager.getLogicWorldInfo(logicWorldSessionInfo.localGuid);
         if (null == logicWorldInfo) {
             logger.error("Session state error. Connect success, but logicWorld info may already onShutdown.");
         } else {
@@ -453,7 +447,7 @@ public class S2CSessionManager {
      * @param clientToken 客户端携带的token信息，等于服务器使用的token (usingToken)
      */
     private boolean reconnect(Channel channel, ConnectRequestEventParam requestParam, @Nonnull Token clientToken) {
-        SessionWrapper sessionWrapper = getSessionWrapper(requestParam.logicWorldGuid(), requestParam.getClientGuid());
+        SessionWrapper sessionWrapper = getSessionWrapper(requestParam.localGuid(), requestParam.getClientGuid());
         assert null != sessionWrapper;
         // 这是一个旧请求
         if (requestParam.getSndTokenTimes() <= sessionWrapper.getSndTokenTimes()){
@@ -513,7 +507,7 @@ public class S2CSessionManager {
      * @param failReason 失败原因，用于记录日志
      */
     private void notifyTokenCheckFailed(Channel channel, ConnectRequestEventParam requestEventParam, FailReason failReason){
-        Token failToken = tokenManager.newFailToken(requestEventParam.getClientGuid(), requestEventParam.logicWorldGuid());
+        Token failToken = tokenManager.newFailToken(requestEventParam.getClientGuid(), requestEventParam.localGuid());
         notifyTokenCheckResult(channel,requestEventParam.getConnectRequestTO().getSndTokenTimes(),false, -1, failToken);
         logger.warn("client {} checkTokenResult failed by reason of {}",requestEventParam.getClientGuid(),failReason);
     }
@@ -565,7 +559,7 @@ public class S2CSessionManager {
      * @param then 当且仅当message是当前channel上期望的下一个消息，且ack合法时执行。
      */
     private <T extends MessageEventParam> void tryUpdateMessageQueue(Channel eventChannel, T eventParam, Consumer<SessionWrapper> then){
-        SessionWrapper sessionWrapper = getSessionWrapper(eventParam.logicWorldGuid(), eventParam.remoteLogicWorldGuid());
+        SessionWrapper sessionWrapper = getSessionWrapper(eventParam.localGuid(), eventParam.remoteGuid());
         if (null == sessionWrapper){
             NetUtils.closeQuietly(eventChannel);
             return;
@@ -667,8 +661,8 @@ public class S2CSessionManager {
 
         // ------------- 会话关联的本地对象 -----------------
         /** 监听端口的logicWorld的信息 */
-        private final long logicWorldGuid;
-        private final RoleType logicWorldRoleType;
+        private final long localGuid;
+        private final RoleType localRole;
         /** 会话生命周期handler */
         private final SessionLifecycleAware<S2CSession> lifecycleAware;
         /** （如果容易用错的话，可以改成{@link ChannelInitializerFactory}） */
@@ -678,11 +672,11 @@ public class S2CSessionManager {
         /** 本地监听rpc结果的future */
         private final Long2ObjectMap<Promise<RpcResponse>> rpcListenerMap = new Long2ObjectOpenHashMap<>();
 
-        private LogicWorldSessionInfo(long logicWorldGuid, RoleType logicWorldRoleType,
+        private LogicWorldSessionInfo(long localGuid, RoleType localRole,
                                       @Nonnull SessionLifecycleAware<S2CSession> lifecycleAware,
                                       @Nonnull ChannelInitializerSupplier initializerSupplier) {
-            this.logicWorldGuid = logicWorldGuid;
-            this.logicWorldRoleType = logicWorldRoleType;
+            this.localGuid = localGuid;
+            this.localRole = localRole;
             this.lifecycleAware = lifecycleAware;
             this.initializerSupplier = initializerSupplier;
         }
@@ -815,7 +809,7 @@ public class S2CSessionManager {
         }
 
         long getLogicWorldGuid() {
-            return logicWorldSessionInfo.logicWorldGuid;
+            return logicWorldSessionInfo.localGuid;
         }
 
         SessionLifecycleAware<S2CSession> getLifecycleAware() {

@@ -36,14 +36,14 @@ import javax.annotation.concurrent.ThreadSafe;
 @ThreadSafe
 public class TCPServerChannelInitializer extends ChannelInitializer<SocketChannel> {
 
-    /** 是哪一个logicWorld在监听 */
-    private final long logicWorldGuid;
+    /** 本地发起监听的角色guid */
+    private final long localGuid;
     private final int maxFrameLength;
     private final CodecHelper codecHelper;
     private final NetEventManager netEventManager;
 
-    public TCPServerChannelInitializer(long logicWorldGuid, int maxFrameLength, CodecHelper codecHelper, NetEventManager netEventManager) {
-        this.logicWorldGuid = logicWorldGuid;
+    public TCPServerChannelInitializer(long localGuid, int maxFrameLength, CodecHelper codecHelper, NetEventManager netEventManager) {
+        this.localGuid = localGuid;
         this.maxFrameLength = maxFrameLength;
         this.netEventManager = netEventManager;
         this.codecHelper = codecHelper;
@@ -53,6 +53,6 @@ public class TCPServerChannelInitializer extends ChannelInitializer<SocketChanne
     protected void initChannel(SocketChannel ch) throws Exception {
         ChannelPipeline pipeline=ch.pipeline();
         pipeline.addLast(new LengthFieldBasedFrameDecoder(maxFrameLength, 0, 4, 0, 4));
-        pipeline.addLast(new ServerCodec(codecHelper, logicWorldGuid, netEventManager));
+        pipeline.addLast(new ServerCodec(codecHelper, localGuid, netEventManager));
     }
 }

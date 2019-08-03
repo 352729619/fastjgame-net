@@ -46,9 +46,6 @@ public class LogicWorldManager {
 
     private static final Logger logger = LoggerFactory.getLogger(LogicWorldManager.class);
 
-    /**
-     * logicWorldGuid -> logicWorld
-     */
     private final Long2ObjectMap<LogicWorldInNetWorldInfo> logicWorldMap = new Long2ObjectOpenHashMap<>();
 
     private GameEventLoopManager gameEventLoopManager;

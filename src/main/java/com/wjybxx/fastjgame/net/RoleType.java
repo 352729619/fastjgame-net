@@ -33,41 +33,51 @@ public enum RoleType implements NumberEnum {
      */
     INVALID(-1),
     /**
-     * 测试用
-     */
-    TEST(0),
-    /**
      * 网关服(不使用)
      */
-    GATE(1),
+    GATE(0),
     /**
      * 登录服(login server)
      */
-    LOGIN(2),
+    LOGIN(1),
     /**
      * 中心服务器
      */
-    CENTER(3),
+    CENTER(2),
     /**
      * 场景服
      */
-    SCENE(4),
+    SCENE(3),
     /**
      * 战区服
      */
-    WARZONE(5),
+    WARZONE(4),
     /**
      * 玩家
      */
-    PLAYER(6),
+    PLAYER(5),
     /**
      * GM后台
      */
-    GM(7),
+    GM(6),
     /**
-     * NetWorld
+     * 数据库服务器 (扩展用)
      */
-    NET(8)
+    DB(7),
+    /**
+     * 场景node服务器 (扩展用)
+     */
+    NODE(8),
+
+    /**
+     * 测试用客户端角色
+     */
+    TEST_CLIENT(9),
+
+    /**
+     * 测试用服务器角色
+     */
+    TEST_SERVER(10),
     ;
 
     /**

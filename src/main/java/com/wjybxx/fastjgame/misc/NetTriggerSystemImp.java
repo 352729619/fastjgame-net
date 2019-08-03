@@ -17,6 +17,7 @@
 package com.wjybxx.fastjgame.misc;
 
 import com.wjybxx.fastjgame.manager.NetTimeManager;
+import com.wjybxx.fastjgame.trigger.SystemTimeHelper;
 import com.wjybxx.fastjgame.trigger.Timer;
 import com.wjybxx.fastjgame.trigger.TriggerSystemImp;
 
@@ -31,8 +32,10 @@ public class NetTriggerSystemImp implements NetTriggerSystem {
 
 	private final TriggerSystemImp triggerSystemImp = new TriggerSystemImp();
 
-	public NetTriggerSystemImp() {
+	private final SystemTimeHelper systemTimeHelper;
 
+	public NetTriggerSystemImp(SystemTimeHelper systemTimeHelper) {
+		this.systemTimeHelper = systemTimeHelper;
 	}
 
 	/**
@@ -40,14 +43,14 @@ public class NetTriggerSystemImp implements NetTriggerSystem {
 	 * @param timer 定时器
 	 */
 	public void addTimer(Timer timer) {
-		triggerSystemImp.addTimer(timer, NetTimeManager.getSystemMillTime());
+		triggerSystemImp.addTimer(timer, systemTimeHelper.getSystemMillTime());
 	}
 
 	/**
 	 * 检查timer执行
 	 */
 	public void tickTrigger() {
-		triggerSystemImp.tickTrigger(NetTimeManager.getSystemMillTime());
+		triggerSystemImp.tickTrigger(systemTimeHelper.getSystemMillTime());
 	}
 
 	@Override

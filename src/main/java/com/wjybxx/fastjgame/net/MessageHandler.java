@@ -17,7 +17,8 @@
 package com.wjybxx.fastjgame.net;
 
 /**
- * 业务逻辑消息处理器
+ * 业务逻辑消息处理器，包括单向消息，rpc请求
+ *
  * @param <T> 消息类型
  * @author wjybxx
  * @version 1.0
@@ -33,4 +34,5 @@ public interface MessageHandler<T> {
      * @param message 业务逻辑消息
      */
     void handle(Session session, T message) throws Exception;
+
 }

@@ -42,8 +42,8 @@ import javax.annotation.concurrent.ThreadSafe;
 @ThreadSafe
 public class WsServerChannelInitializer extends ChannelInitializer<SocketChannel> {
 
-    /** 是哪一个logicWorld在监听 */
-    private final long logicWorldGuid;
+    /** 本地监听端口的角色guid */
+    private final long localGuid;
     /**
      * url路径(eg: "http://127.0.0.1:8888/ws" 中的 /ws )
      */
@@ -52,8 +52,8 @@ public class WsServerChannelInitializer extends ChannelInitializer<SocketChannel
     private final CodecHelper codecHelper;
     private final NetEventManager netEventManager;
 
-    public WsServerChannelInitializer(long logicWorldGuid, String websocketPath, int maxFrameLength, CodecHelper codecHelper, NetEventManager netEventManager) {
-        this.logicWorldGuid = logicWorldGuid;
+    public WsServerChannelInitializer(long localGuid, String websocketPath, int maxFrameLength, CodecHelper codecHelper, NetEventManager netEventManager) {
+        this.localGuid = localGuid;
         this.websocketPath = websocketPath;
         this.maxFrameLength = maxFrameLength;
         this.netEventManager = netEventManager;
@@ -98,6 +98,6 @@ public class WsServerChannelInitializer extends ChannelInitializer<SocketChannel
 
     private void appendCustomProtocolCodec(ChannelPipeline pipeline) {
         pipeline.addLast(new LengthFieldBasedFrameDecoder(maxFrameLength,0,4,0,4));
-        pipeline.addLast(new ServerCodec(codecHelper, logicWorldGuid, netEventManager));
+        pipeline.addLast(new ServerCodec(codecHelper, localGuid, netEventManager));
     }
 }

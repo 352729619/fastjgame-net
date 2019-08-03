@@ -37,15 +37,15 @@ import javax.annotation.concurrent.ThreadSafe;
 public class TCPClientChannelInitializer extends ChannelInitializer<SocketChannel> {
 
     /** 是哪一个logicWorld发起的连接 */
-    private final long logicWorldGuid;
+    private final long localGuid;
     private final long serverGuid;
 
     private final int maxFrameLength;
     private final NetEventManager netEventManager;
     private final CodecHelper codecHelper;
 
-    public TCPClientChannelInitializer(long logicWorldGuid, long serverGuid, int maxFrameLength, NetEventManager netEventManager, CodecHelper codecHelper) {
-        this.logicWorldGuid = logicWorldGuid;
+    public TCPClientChannelInitializer(long localGuid, long serverGuid, int maxFrameLength, NetEventManager netEventManager, CodecHelper codecHelper) {
+        this.localGuid = localGuid;
         this.serverGuid = serverGuid;
         this.maxFrameLength = maxFrameLength;
         this.netEventManager = netEventManager;
@@ -56,6 +56,6 @@ public class TCPClientChannelInitializer extends ChannelInitializer<SocketChanne
     protected void initChannel(SocketChannel ch) throws Exception {
         ChannelPipeline pipeline = ch.pipeline();
         pipeline.addLast(new LengthFieldBasedFrameDecoder(maxFrameLength, 0, 4, 0, 4));
-        pipeline.addLast(new ClientCodec(codecHelper, logicWorldGuid, serverGuid, netEventManager));
+        pipeline.addLast(new ClientCodec(codecHelper, localGuid, serverGuid, netEventManager));
     }
 }

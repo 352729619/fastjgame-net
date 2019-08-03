@@ -7,7 +7,7 @@
  byte 1字节      pkgType           协议的类型(每种协议一个固定值)
 
 1.token验证(请求登录)
- long  8字节     clientGuid        客户端唯一标识，用于初始化channel，关联会话
+ long  8字节     clientGuid2        客户端唯一标识，用于初始化channel，关联会话
  int   4字节     sndTokenTimes     这是客户端第几次发起连接请求(用于识别在同一个token上的最新请求)和追踪结果
  long  8字节     ack               客户端收到的最大消息号(捎带确认的ack)
  bytes 字节数组  encryptTokenBytes  加密后的token字节数组,用于登录该服务器的token(用于校验请求参数)

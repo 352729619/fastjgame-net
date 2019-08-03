@@ -53,7 +53,11 @@ public enum RpcResultCode implements NumberEnum {
 	/**
 	 * 请求被禁止
 	 */
-	FORBID(4)
+	FORBID(4),
+	/**
+	 * 请求错误
+	 */
+	BAD_REQUEST(5),
 	;
 
 	/** 唯一标识，不可随意修改 */

@@ -27,6 +27,11 @@ package com.wjybxx.fastjgame.net;
  */
 public class S2CSession implements Session {
 
+    /** 会话关联的本地角色guid */
+    private final long localGuid;
+    /** 会话关联的本地角色类型 */
+    private final RoleType localRole;
+
     /**
      * 客户端唯一id，也就是sessionId
      */
@@ -36,9 +41,21 @@ public class S2CSession implements Session {
      */
     private final RoleType clientType;
 
-    public S2CSession(long clientGuid, RoleType clientType) {
+    public S2CSession(long localGuid, RoleType localRole, long clientGuid, RoleType clientType) {
+        this.localGuid = localGuid;
+        this.localRole = localRole;
         this.clientGuid = clientGuid;
         this.clientType = clientType;
+    }
+
+    @Override
+    public long localGuid() {
+        return localGuid;
+    }
+
+    @Override
+    public RoleType localRole() {
+        return localRole;
     }
 
     @Override

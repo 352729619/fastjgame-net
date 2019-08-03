@@ -53,7 +53,12 @@ public final class RpcResponse {
 		return body;
 	}
 
+	public boolean hasBody() {
+		return RpcResultCode.hasBody(resultCode);
+	}
+
 	public boolean isSuccess() {
 		return RpcResultCode.isSuccess(resultCode);
 	}
+
 }

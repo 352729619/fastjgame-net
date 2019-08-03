@@ -28,6 +28,11 @@ import com.wjybxx.fastjgame.misc.HostAndPort;
  */
 public class C2SSession implements Session {
 
+    /** 会话关联的本地角色guid */
+    private final long localGuid;
+    /** 会话关联的本地角色类型 */
+    private final RoleType localRole;
+
     /**
      * 服务器唯一标识(会话id)
      */
@@ -41,10 +46,22 @@ public class C2SSession implements Session {
      */
     private final HostAndPort hostAndPort;
 
-    public C2SSession(long serverGuid, RoleType serverType, HostAndPort hostAndPort) {
+    public C2SSession(long localGuid, RoleType localRole, long serverGuid, RoleType serverType, HostAndPort hostAndPort) {
+        this.localGuid = localGuid;
+        this.localRole = localRole;
         this.serverGuid = serverGuid;
         this.serverType = serverType;
         this.hostAndPort = hostAndPort;
+    }
+
+    @Override
+    public long localGuid() {
+        return localGuid;
+    }
+
+    @Override
+    public RoleType localRole() {
+        return localRole;
     }
 
     @Override
@@ -72,7 +89,9 @@ public class C2SSession implements Session {
     @Override
     public String toString() {
         return "C2SSession{" +
-                "serverGuid=" + serverGuid +
+                "localGuid=" + localGuid +
+                ", localRole=" + localRole +
+                ", serverGuid=" + serverGuid +
                 ", serverType=" + serverType +
                 ", hostAndPort=" + hostAndPort +
                 '}';

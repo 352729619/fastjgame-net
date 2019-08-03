@@ -28,14 +28,14 @@ import io.netty.channel.Channel;
  */
 public class OneWayMessageEventParam extends MessageEventParam{
 
-	/** remoteLogicWorldGuid */
-	private final long remoteLogicWorldGuid;
+	/** remoteGuid */
+	private final long remoteGuid;
 	/** 消息内容 */
 	private final OneWayMessageTO oneWayMessageTO;
 
-	public OneWayMessageEventParam(Channel channel, long logicWorldGuid, long remoteLogicWorldGuid, OneWayMessageTO oneWayMessageTO) {
-		super(logicWorldGuid, channel);
-		this.remoteLogicWorldGuid = remoteLogicWorldGuid;
+	public OneWayMessageEventParam(Channel channel, long localGuid, long remoteGuid, OneWayMessageTO oneWayMessageTO) {
+		super(channel, localGuid);
+		this.remoteGuid = remoteGuid;
 		this.oneWayMessageTO = oneWayMessageTO;
 	}
 
@@ -45,7 +45,7 @@ public class OneWayMessageEventParam extends MessageEventParam{
 	}
 
 	@Override
-	public long remoteLogicWorldGuid() {
-		return remoteLogicWorldGuid;
+	public long remoteGuid() {
+		return remoteGuid;
 	}
 }

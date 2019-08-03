@@ -17,7 +17,10 @@
 package com.wjybxx.fastjgame.net;
 
 /**
- * 会话信息，用于获取远程的基本信息，子类可提供更为全面的信息
+ * 会话信息，用于获取远程的基本信息，子类可提供更为全面的信息。
+ *
+ * Q:为何抽象层没有提供address之类的信息？
+ * A:因为底层会自动处理断线重连等等，这些信息可能会变化，暂时不提供。
  *
  * @author wjybxx
  * @version 1.0
@@ -27,14 +30,22 @@ package com.wjybxx.fastjgame.net;
 public interface Session {
 
     /**
+     * 会话关联的本地对象guid
+     */
+    long localGuid();
+
+    /**
+     * 会话管理的本地角色类型
+     */
+    RoleType localRole();
+
+    /**
      * 远程的guid
-     * @return guid
      */
     long remoteGuid();
 
     /**
      * 远程的角色类型
-     * @return role
      */
     RoleType remoteRole();
 }

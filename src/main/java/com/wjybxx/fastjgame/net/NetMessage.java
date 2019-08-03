@@ -32,7 +32,7 @@ import javax.annotation.concurrent.NotThreadSafe;
 @NotThreadSafe
 public abstract class NetMessage {
     /**
-     * 当前包id
+     * 当前包id。一个网络包一旦被构建，则不再改变！
      */
     protected final long sequence;
     /**

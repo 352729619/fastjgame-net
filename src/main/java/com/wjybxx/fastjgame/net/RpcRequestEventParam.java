@@ -31,15 +31,15 @@ public class RpcRequestEventParam extends MessageEventParam{
 	 * 会话唯一标识，对方唯一标识。
 	 * channel上取出来的。
 	 */
-	private final long clientGuid;
+	private final long remoteGuid;
 	/**
 	 * Rpc请求信息
 	 */
 	private final RpcRequestMessageTO requestMessageTO;
 
-	public RpcRequestEventParam(Channel channel, long logicWorldGuid, long clientGuid, RpcRequestMessageTO requestMessageTO) {
-		super(logicWorldGuid, channel);
-		this.clientGuid = clientGuid;
+	public RpcRequestEventParam(Channel channel, long localGuid, long remoteGuid, RpcRequestMessageTO requestMessageTO) {
+		super(channel, localGuid);
+		this.remoteGuid = remoteGuid;
 		this.requestMessageTO = requestMessageTO;
 	}
 
@@ -49,7 +49,7 @@ public class RpcRequestEventParam extends MessageEventParam{
 	}
 
 	@Override
-	public long remoteLogicWorldGuid() {
-		return clientGuid;
+	public long remoteGuid() {
+		return remoteGuid;
 	}
 }

@@ -16,6 +16,8 @@
 
 package com.wjybxx.fastjgame.net;
 
+import javax.annotation.concurrent.NotThreadSafe;
+
 /**
  * Rpc请求消息
  *
@@ -24,6 +26,7 @@ package com.wjybxx.fastjgame.net;
  * date - 2019/7/31
  * github - https://github.com/hl845740757
  */
+@NotThreadSafe
 public class RpcRequestMessage extends NetMessage{
 
 	/** rpc请求编号，用于返回消息 */
@@ -38,7 +41,7 @@ public class RpcRequestMessage extends NetMessage{
 	}
 
 	@Override
-	public MessageTO build(long ack) {
+	public RpcRequestMessageTO build(long ack) {
 		return new RpcRequestMessageTO(ack, getSequence(), requestGuid, request);
 	}
 

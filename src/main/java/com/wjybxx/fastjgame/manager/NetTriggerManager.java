@@ -29,7 +29,7 @@ import com.wjybxx.fastjgame.misc.NetTriggerSystemImp;
 public class NetTriggerManager extends NetTriggerSystemImp {
 
     @Inject
-    public NetTriggerManager() {
-
+    public NetTriggerManager(NetTimeManager netTimeManager) {
+        super(netTimeManager);
     }
 }

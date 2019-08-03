@@ -38,6 +38,7 @@ public abstract class MessageTO {
      * 捎带确认的ack
      */
     private final long ack;
+
     /**
      * 当前包id
      */

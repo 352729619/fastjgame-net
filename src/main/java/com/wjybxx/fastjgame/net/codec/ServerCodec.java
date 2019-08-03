@@ -37,15 +37,15 @@ import java.io.IOException;
 public class ServerCodec extends BaseCodec {
 
     /** 该channel关联哪一个logicWorld */
-    private final long logicWorldGuid;
+    private final long localGuid;
     /** 缓存的客户端guid，关联的远程 */
     private long clientGuid = NetConstants.INVALID_SESSION_ID;
 
     private final NetEventManager netEventManager;
 
-    public ServerCodec(CodecHelper codecHelper, long logicWorldGuid, NetEventManager netEventManager) {
+    public ServerCodec(CodecHelper codecHelper, long localGuid, NetEventManager netEventManager) {
         super(codecHelper);
-        this.logicWorldGuid = logicWorldGuid;
+        this.localGuid = localGuid;
         this.netEventManager = netEventManager;
     }
 
@@ -118,7 +118,7 @@ public class ServerCodec extends BaseCodec {
      */
     private void tryReadConnectRequest(ChannelHandlerContext ctx, ByteBuf msg){
         ConnectRequestTO connectRequestTO = readConnectRequest(ctx.channel(), msg);
-        ConnectRequestEventParam connectRequestEventParam = new ConnectRequestEventParam(logicWorldGuid, ctx.channel(), connectRequestTO);
+        ConnectRequestEventParam connectRequestEventParam = new ConnectRequestEventParam(ctx.channel(), localGuid, connectRequestTO);
         netEventManager.publishEvent(NetEventType.CONNECT_REQUEST, connectRequestEventParam);
         if (!isInited()){
             init(connectRequestTO.getClientGuid());
@@ -132,7 +132,7 @@ public class ServerCodec extends BaseCodec {
         ensureInited();
 
         AckPingPongMessageTO ackPingPongMessage = readAckPingPongMessage(msg);
-        AckPingPongEventParam ackPingParam = new AckPingPongEventParam(ctx.channel(), logicWorldGuid, clientGuid, ackPingPongMessage);
+        AckPingPongEventParam ackPingParam = new AckPingPongEventParam(ctx.channel(), localGuid, clientGuid, ackPingPongMessage);
         netEventManager.publishEvent(NetEventType.ACK_PONG, ackPingParam);
     }
 
@@ -143,7 +143,7 @@ public class ServerCodec extends BaseCodec {
         ensureInited();
 
         RpcRequestMessageTO rpcRequestMessageTO = readRpcRequestMessage(msg);
-        RpcRequestEventParam rpcRequestEventParam = new RpcRequestEventParam(ctx.channel(), logicWorldGuid, clientGuid, rpcRequestMessageTO);
+        RpcRequestEventParam rpcRequestEventParam = new RpcRequestEventParam(ctx.channel(), localGuid, clientGuid, rpcRequestMessageTO);
         netEventManager.publishEvent(NetEventType.C2S_RPC_REQUEST, rpcRequestEventParam);
     }
 
@@ -154,7 +154,7 @@ public class ServerCodec extends BaseCodec {
         ensureInited();
 
         RpcResponseMessageTO rpcResponseMessageTO = readRpcResponseMessage(msg);
-        RpcResponseEventParam rpcResponseEventParam = new RpcResponseEventParam(ctx.channel(), logicWorldGuid, clientGuid, rpcResponseMessageTO);
+        RpcResponseEventParam rpcResponseEventParam = new RpcResponseEventParam(ctx.channel(), localGuid, clientGuid, rpcResponseMessageTO);
         netEventManager.publishEvent(NetEventType.S2C_RPC_RESPONSE, rpcResponseEventParam);
     }
 
@@ -165,7 +165,7 @@ public class ServerCodec extends BaseCodec {
         ensureInited();
 
         OneWayMessageTO oneWayMessageTO = readOneWayMessage(msg);
-        OneWayMessageEventParam oneWayMessageEventParam = new OneWayMessageEventParam(ctx.channel(), logicWorldGuid, clientGuid, oneWayMessageTO);
+        OneWayMessageEventParam oneWayMessageEventParam = new OneWayMessageEventParam(ctx.channel(), localGuid, clientGuid, oneWayMessageTO);
         netEventManager.publishEvent(NetEventType.C2S_ONE_WAY_MESSAGE, oneWayMessageEventParam);
     }
     // endregion

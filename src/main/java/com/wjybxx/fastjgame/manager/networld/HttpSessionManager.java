@@ -80,12 +80,12 @@ public class HttpSessionManager {
 	public void onRcvHttpRequest(HttpRequestEventParam requestEventParam){
 		final Channel channel = requestEventParam.channel();
 		// 保存session - 保持一段时间的活性
-		HttpSessionWrapper sessionWrapper = sessionWrapperMap.computeIfAbsent(channel, k -> new HttpSessionWrapper(new HttpSession(requestEventParam.logicWorldGuid(), channel)));
+		HttpSessionWrapper sessionWrapper = sessionWrapperMap.computeIfAbsent(channel, k -> new HttpSessionWrapper(new HttpSession(requestEventParam.localGuid(), channel)));
 		sessionWrapper.setSessionTimeout(netConfigManager.httpSessionTimeout() + netTimeManager.getSystemSecTime());
 
 		HttpSession httpSession = sessionWrapper.session;
 		// 分发事件
-		LogicWorldInNetWorldInfo logicWorldInfo = logicWorldManager.getLogicWorldInfo(requestEventParam.logicWorldGuid());
+		LogicWorldInNetWorldInfo logicWorldInfo = logicWorldManager.getLogicWorldInfo(requestEventParam.localGuid());
 		if (null == logicWorldInfo) {
 			// 不存在对应的logicWorld
 			httpSession.writeAndFlush(HttpResponseHelper.newNotFoundResponse());

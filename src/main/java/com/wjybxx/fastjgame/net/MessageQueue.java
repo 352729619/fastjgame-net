@@ -40,35 +40,37 @@ public final class MessageQueue {
      * 初始ACK
      */
     public static final int INIT_ACK = 0;
-
     /**
      * 序号分配器
      */
-    private LongSequencer sequencer=new LongSequencer(INIT_ACK);
+    private LongSequencer sequencer = new LongSequencer(INIT_ACK);
     /**
      * 接收到对方的最大消息编号
      */
     private long ack = INIT_ACK;
     /**
      * 已发送待确认的消息，只要发送过就不会再放入 {@link #needSendQueue}
+     * Q:为什么不使用arrayList?
+     * A: 1.存在大量的删除操作 2.太占用内存。
      */
-    private final LinkedList<NetMessage> sentQueue=new LinkedList<>();
+    private final LinkedList<NetMessage> sentQueue = new LinkedList<>();
     /**
      * 待发送的消息,还没有尝试发送过的消息
      */
-    private final LinkedList<NetMessage> needSendQueue=new LinkedList<>();
-
+    private final LinkedList<UnsentMessage> needSendQueue = new LinkedList<>();
+    /**
+     * rpc计数器
+     */
+    private final LongSequencer rpcRequestGuidSequencer = new LongSequencer(0);
 
     // -----------------对方返回的ack
-    // 每次返回的Ack不小于上次返回的ack,不大于发出去的最大消息号
 
     /**
-     * 对方发送过来的ack是否有效
-     * @param ack
-     * @return
+     * 对方发送过来的ack是否有效。
+     * 每次返回的Ack不小于上次返回的ack,不大于发出去的最大消息号
      */
     public boolean isAckOK(long ack){
-        return ack>= getAckLowerBound() && ack<= getAckUpperBound();
+        return ack >= getAckLowerBound() && ack <= getAckUpperBound();
     }
 
     /**
@@ -80,10 +82,6 @@ public final class MessageQueue {
         if (sentQueue.size()>0){
             return sentQueue.getFirst().getSequence()-1;
         }
-        // 已发送的都已确认，那么待发送的上一个就是ack下界
-        if (needSendQueue.size()>0){
-            return needSendQueue.getFirst().getSequence()-1;
-        }
         // 都已确认，且没有新消息，那么上次分配的就是ack下界
         return sequencer.get();
     }
@@ -93,13 +91,9 @@ public final class MessageQueue {
      * @return
      */
     private long getAckUpperBound(){
-        // 有已发送待确认的消息，那么它的最后一个就是可能的ack上界
+        // 有已发送待确认的消息，那么它的最后一个就是ack上界
         if (sentQueue.size()>0){
             return sentQueue.getLast().getSequence();
-        }
-        // 已发送的都已确认，那么待发送的上一个就是ack的上界
-        if (needSendQueue.size()>0){
-            return needSendQueue.getFirst().getSequence()-1;
         }
         // 都已确认，且没有新消息，那么上次分配的就是ack上界
         return sequencer.get();
@@ -132,13 +126,18 @@ public final class MessageQueue {
     }
 
     /**
-     * 分配下一个消息guid
-     * @return
+     * 分配下一个包的编号
      */
     public long nextSequence(){
         return sequencer.incAndGet();
     }
 
+    /**
+     * 分配下一个rpc请求的编号
+     */
+    public long nextRpcRequestGuid() {
+        return rpcRequestGuidSequencer.incAndGet();
+    }
 
     public long getAck() {
         return ack;
@@ -152,13 +151,12 @@ public final class MessageQueue {
         return sentQueue;
     }
 
-    public LinkedList<NetMessage> getNeedSendQueue() {
+    public LinkedList<UnsentMessage> getNeedSendQueue() {
         return needSendQueue;
     }
 
     /**
      * 获取当前缓存的消息数
-     * @return
      */
     public int getCacheMessageNum(){
         return sentQueue.size() + needSendQueue.size();

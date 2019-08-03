@@ -29,14 +29,11 @@ public final class NetConstants {
      * 网络包配置文件名字
      */
     public static final String NET_CONFIG_NAME = "net_config.properties";
+
     /**
      * 无效的sessionId
      */
     public static final long INVALID_SESSION_ID = Long.MIN_VALUE;
-    /**
-     * 初始请求id
-     */
-    public static final long INIT_REQUEST_GUID = 0;
 
     private NetConstants() {
 
