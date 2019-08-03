@@ -5,6 +5,10 @@ import com.wjybxx.fastjgame.concurrent.ListenableFuture;
 import com.wjybxx.fastjgame.eventloop.NetEventLoop;
 import com.wjybxx.fastjgame.net.*;
 import com.wjybxx.fastjgame.net.initializer.ChannelInitializerSupplier;
+import okhttp3.Response;
+
+import java.io.IOException;
+import java.util.Map;
 
 /**
  * 逻辑层使用的网络上下文
@@ -42,10 +46,9 @@ public interface NetContext {
 	/**
 	 * 从注册的NetEventLoop上取消注册，会关闭该context关联的所有会话。
 	 */
-	void unregister();
+	ListenableFuture<?> unregister();
 
-
-	// tcp/ws支持
+	// ----------------------------------- tcp/ws支持 ---------------------------------------
 
 	/**
 	 * 监听某个端口
@@ -56,10 +59,9 @@ public interface NetContext {
 	 * @param messageHandler 消息处理器
 	 * @return future 可以等待绑定完成。
 	 */
-	default ListenableFuture<HostAndPort> bind(boolean outer, int port,
-									   ChannelInitializerSupplier initializerSupplier,
-									   SessionLifecycleAware<S2CSession> lifecycleAware,
-									   MessageHandler messageHandler) {
+	default ListenableFuture<HostAndPort> bind(boolean outer, int port, ChannelInitializerSupplier initializerSupplier,
+											   SessionLifecycleAware<S2CSession> lifecycleAware,
+											   MessageHandler messageHandler) {
 		return this.bindRange(outer, new PortRange(port, port), initializerSupplier, lifecycleAware, messageHandler);
 	}
 
@@ -72,8 +74,7 @@ public interface NetContext {
 	 * @param messageHandler 消息处理器
 	 * @return future 可以等待绑定完成。
 	 */
-	ListenableFuture<HostAndPort> bindRange(boolean outer, PortRange portRange,
-											ChannelInitializerSupplier initializerSupplier,
+	ListenableFuture<HostAndPort> bindRange(boolean outer, PortRange portRange, ChannelInitializerSupplier initializerSupplier,
 											SessionLifecycleAware<S2CSession> lifecycleAware,
 											MessageHandler messageHandler);
 
@@ -87,13 +88,11 @@ public interface NetContext {
 	 * @param messageHandler 消息处理器
 	 * @return future，future 可以等待连接完成。
 	 */
-	ListenableFuture<?> connect(long remoteGuid, RoleType remoteRole,
-										  HostAndPort remoteAddress,
-										  ChannelInitializerSupplier initializerSupplier,
-										  SessionLifecycleAware<C2SSession> lifecycleAware,
-										  MessageHandler messageHandler);
+	ListenableFuture<?> connect(long remoteGuid, RoleType remoteRole, HostAndPort remoteAddress, ChannelInitializerSupplier initializerSupplier,
+								SessionLifecycleAware<C2SSession> lifecycleAware,
+								MessageHandler messageHandler);
 
-	// http
+	//  --------------------------------------- http支持 -----------------------------------------
 
 	/**
 	 * 监听某个端口
@@ -103,8 +102,7 @@ public interface NetContext {
 	 * @param httpRequestHandler http请求处理器
 	 * @return future 可以等待绑定完成。
 	 */
-	default ListenableFuture<HostAndPort> bind(boolean outer, int port,
-							 ChannelInitializerSupplier initializerSupplier,
+	default ListenableFuture<HostAndPort> bind(boolean outer, int port, ChannelInitializerSupplier initializerSupplier,
 							 HttpRequestHandler httpRequestHandler) {
 		return this.bindRange(outer, new PortRange(port, port), initializerSupplier, httpRequestHandler);
 	}
@@ -118,7 +116,35 @@ public interface NetContext {
 	 * @param httpRequestHandler http请求处理器
 	 * @return future 可以等待绑定完成。
 	 */
-	ListenableFuture<HostAndPort> bindRange(boolean outer, PortRange portRange,
-								  ChannelInitializerSupplier initializerSupplier,
+	ListenableFuture<HostAndPort> bindRange(boolean outer, PortRange portRange, ChannelInitializerSupplier initializerSupplier,
 								  HttpRequestHandler httpRequestHandler);
+
+	/**
+	 * 同步get请求
+	 * @param url url
+	 * @param params get参数
+	 */
+	Response syncGet(String url, Map<String,String> params) throws IOException;
+	/**
+	 * 异步get请求
+	 * @param url url
+	 * @param params get参数
+	 * @param okHttpCallback 回调
+	 */
+	void asyncGet(String url, Map<String,String> params, OkHttpCallback okHttpCallback);
+
+	/**
+	 * 同步post请求
+	 * @param url url
+	 * @param params post参数
+	 */
+	Response syncPost(String url, Map<String,String> params) throws IOException;
+
+	/**
+	 * 异步post请求
+	 * @param url url
+	 * @param params post参数
+	 * @param okHttpCallback 回调
+	 */
+	void asyncPost(String url, Map<String,String> params, OkHttpCallback okHttpCallback);
 }

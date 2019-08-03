@@ -160,7 +160,7 @@ public class HttpSessionManager {
 		final ConfigWrapper param = requestEventParam.getHttpRequestTO().getParams();
 
 		// 处理请求，提交到用户所在的线程，实现线程安全
-		userInfo.netContext.localEventLoop().execute(() -> {
+		ConcurrentUtils.tryCommit(userInfo.netContext.localEventLoop(), () -> {
 			try {
 				userInfo.httpRequestHandler.onHttpRequest(httpSession, path, param);
 			} catch (Exception e) {

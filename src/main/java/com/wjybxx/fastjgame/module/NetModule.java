@@ -49,8 +49,6 @@ public class NetModule extends AbstractModule {
 		bind(NetTimeManager.class).in(Singleton.class);
 		bind(NetTimerManager.class).in(Singleton.class);
 
-		// 管理logicWorld信息
-		bind(LogicWorldManager.class).in(Singleton.class);
 		bind(NetManagerWrapper.class).in(Singleton.class);
 	}
 }

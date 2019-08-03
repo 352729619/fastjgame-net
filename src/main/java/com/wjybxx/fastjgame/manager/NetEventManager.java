@@ -97,7 +97,7 @@ public class NetEventManager {
 				c2SSessionManager.onRcvServerRpcRequest((RpcRequestEventParam) eventParam);
 				break;
 			case S2C_RPC_RESPONSE:
-				s2CSessionManager.onRcvClientRpcResponce((RpcResponseEventParam) eventParam);
+				s2CSessionManager.onRcvClientRpcResponse((RpcResponseEventParam) eventParam);
 				break;
 
 			// 连接双方的单向消息

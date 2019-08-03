@@ -274,14 +274,14 @@ public class C2SSessionManager {
                 });
             }
         } catch (Exception e){
-            logger.warn("disconnected callback caught exception.",reason,session);
+            logger.warn("disconnected callback caught exception.", e);
         }finally {
             // 移除之前进行必要的清理
             if (sessionWrapper.getState()!=null){
                 sessionWrapper.getState().closeChannel();
                 sessionWrapper.setState(null);
             }
-            logger.info("remove session by reason of {}, session info={}.",reason,session);
+            logger.info("remove session by reason of {}, session info={}.", reason, session);
         }
     }
     // region 事件处理

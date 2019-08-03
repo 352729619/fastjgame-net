@@ -29,8 +29,7 @@ import java.io.IOException;
  * Q: 为何要继承{@link Callback}，而不是直接用{@link Callback}？
  * A: 因为这个名字实在太通用了，不够具体，此外名字容易冲突。
  *
- *
- * 所有响应都发生在逻辑线程(游戏世界线程)。
+ * 所有响应都发生在用户指定的线程。
  * 注意查看注释：
  * {@link #onFailure(Call, IOException)}
  * {@link #onResponse(Call, Response)}
@@ -45,7 +44,7 @@ public interface OkHttpCallback extends Callback {
      * @see Callback#onFailure(Call, IOException)
      */
     @Override
-    void onFailure(@Nonnull Call call, @Nonnull IOException e);
+    void onFailure(@Nonnull Call call, @Nonnull IOException cause);
 
     /**
      * @see Callback#onResponse(Call, Response)

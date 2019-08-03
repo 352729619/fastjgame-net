@@ -20,6 +20,7 @@ import com.google.inject.Inject;
 import com.wjybxx.fastjgame.concurrent.EventLoop;
 import com.wjybxx.fastjgame.concurrent.misc.AbstractThreadLifeCycleHelper;
 import com.wjybxx.fastjgame.net.OkHttpCallback;
+import com.wjybxx.fastjgame.utils.ConcurrentUtils;
 import com.wjybxx.fastjgame.utils.NetUtils;
 import okhttp3.*;
 import org.slf4j.Logger;
@@ -162,10 +163,10 @@ public class HttpClientManager extends AbstractThreadLifeCycleHelper {
         }
 
         @Override
-        public void onFailure(@Nonnull Call call, @Nonnull IOException e) {
-            eventLoop.execute(() -> {
+        public void onFailure(@Nonnull Call call, @Nonnull IOException cause) {
+            ConcurrentUtils.tryCommit(eventLoop, () -> {
                 try {
-                    responseCallback.onFailure(call, e);
+                    responseCallback.onFailure(call, cause);
                 } catch (Exception e2){
                     logger.warn("{} onFailure caught exception", call.request().url(), e2);
                 }
@@ -174,7 +175,7 @@ public class HttpClientManager extends AbstractThreadLifeCycleHelper {
 
         @Override
         public void onResponse(@Nonnull Call call, @Nonnull Response response) throws IOException {
-            eventLoop.execute(() -> {
+            ConcurrentUtils.tryCommit(eventLoop, () -> {
                 try {
                     responseCallback.onResponse(call, response);
                 } catch (Exception e) {

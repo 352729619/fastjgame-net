@@ -8,10 +8,15 @@ import com.wjybxx.fastjgame.misc.NetContext;
 import com.wjybxx.fastjgame.module.NetModule;
 import com.wjybxx.fastjgame.net.*;
 import com.wjybxx.fastjgame.utils.ConcurrentUtils;
+import com.wjybxx.fastjgame.utils.FastCollectionsUtils;
 import com.wjybxx.fastjgame.utils.TimeUtils;
+import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
+import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.locks.LockSupport;
 
@@ -33,6 +38,14 @@ public class NetEventLoopImp extends SingleThreadEventLoop implements NetEventLo
 	private final HttpSessionManager httpSessionManager;
 	private final NetTimeManager netTimeManager;
 	private final NetTimerManager netTimerManager;
+
+	/**
+	 * 已注册的用户的EventLoop集合，它是一个安全措施，如果用户在退出时如果没有执行取消操作，
+	 * 那么当监听到所在的EventLoop进入终止状态时，取消该EventLoop上注册的用户。
+	 */
+	private final Set<EventLoop> registeredUserEventLoopSet = new HashSet<>();
+	/** 已注册的用户集合 */
+	private final Long2ObjectMap<NetContextImp> registeredUserMap = new Long2ObjectOpenHashMap<>();
 
 	public NetEventLoopImp(@Nullable EventLoopGroup parent, @Nonnull ThreadFactory threadFactory) {
 		this(parent, threadFactory, RejectedExecutionHandlers.reject());
@@ -83,11 +96,18 @@ public class NetEventLoopImp extends SingleThreadEventLoop implements NetEventLo
 	}
 
 	@Override
-	public ListenableFuture<NetContext> registerUser(long localGuid, RoleType localRole, EventLoop localEventLoop) {
+	public ListenableFuture<NetContext> createContext(long localGuid, RoleType localRole, EventLoop localEventLoop) {
 		if (localEventLoop instanceof NetEventLoop) {
 			throw new IllegalArgumentException("Unexpected invoke.");
 		}
-		return submit(() -> NetContextImp.newInstance(localGuid, localRole, localEventLoop, this, managerWrapper));
+		return submit(() -> {
+			if (registeredUserMap.containsKey(localGuid)) {
+				throw new IllegalArgumentException("user " + localGuid + " is already registered!");
+			}
+			NetContextImp netContext = new NetContextImp(localGuid, localRole, localEventLoop, this, managerWrapper);
+			registeredUserMap.put(localGuid, netContext);
+			return netContext;
+		});
 	}
 
 	@Override
@@ -118,8 +138,35 @@ public class NetEventLoopImp extends SingleThreadEventLoop implements NetEventLo
 	@Override
 	protected void clean() throws Exception {
 		super.clean();
+
+		FastCollectionsUtils.removeIfAndThen(registeredUserMap,
+				(k, netContext) -> true,
+				(k, netContext) -> netContext.afterRemoved());
+
 		ConcurrentUtils.safeExecute((Runnable) nettyThreadManager::shutdown);
 		ConcurrentUtils.safeExecute((Runnable) httpClientManager::shutdown);
 	}
 
+	ListenableFuture<?> removeUser(long localGuid) {
+		return submit(() -> {
+			NetContextImp netContext = registeredUserMap.remove(localGuid);
+			if (null == netContext) {
+				// 早已取消
+				return;
+			}
+			netContext.afterRemoved();
+		});
+	}
+
+	private void onUserEventLoopTerminal(EventLoop userEventLoop) {
+		//
+		FastCollectionsUtils.removeIfAndThen(registeredUserMap,
+				(k, netContext) -> netContext.localEventLoop() == userEventLoop,
+				(k, netContext) -> netContext.afterRemoved());
+
+		// 更彻底的清理
+		managerWrapper.getS2CSessionManager().onUserEventLoopTerminal(userEventLoop);
+		managerWrapper.getC2SSessionManager().onUserEventLoopTerminal(userEventLoop);
+		managerWrapper.getHttpSessionManager().onUserEventLoopTerminal(userEventLoop);
+	}
 }
