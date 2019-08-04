@@ -63,6 +63,10 @@ public enum RpcResultCode implements NumberEnum {
 	 */
 	BAD_REQUEST(6),
 
+	/**
+	 * 错误（对方执行请求时发生错误）
+	 */
+	ERROR(7),
 	;
 
 	/** 唯一标识，不可随意修改 */

@@ -122,14 +122,14 @@ public class S2CSessionManager implements SessionManager {
     }
 
     /**
-     * @see AcceptManager#bindRange(boolean, PortRange, ChannelInitializer)
+     * @see AcceptManager#bindRange(String, PortRange, ChannelInitializer)
      */
-    public HostAndPort bindRange(NetContext netContext, boolean outer, PortRange portRange,
+    public HostAndPort bindRange(NetContext netContext, String host, PortRange portRange,
                                  ChannelInitializer<SocketChannel> initializer,
                                  SessionLifecycleAware<S2CSession> lifecycleAware,
                                  MessageHandler messageHandler) throws BindException {
 
-        final HostAndPort localAddress = acceptManager.bindRange(outer, portRange, initializer);
+        final HostAndPort localAddress = acceptManager.bindRange(host, portRange, initializer);
         // 由于是监听方，因此方法参数是针对该用户的所有客户端的
         userInfoMap.computeIfAbsent(netContext.localGuid(),
                 localGuid -> new UserInfo(netContext, localAddress, initializer, lifecycleAware, messageHandler));

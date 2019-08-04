@@ -83,14 +83,14 @@ public class HttpSessionManager {
 	}
 
 	/**
-	 * @see AcceptManager#bindRange(boolean, PortRange, ChannelInitializer)
+	 * @see AcceptManager#bindRange(String, PortRange, ChannelInitializer)
 	 */
-	public HostAndPort bindRange(NetContext netContext, boolean outer, PortRange portRange,
+	public HostAndPort bindRange(NetContext netContext, String host, PortRange portRange,
 								 ChannelInitializer<SocketChannel> initializer,
 								 HttpRequestHandler httpRequestHandler) throws BindException {
 		assert netEventLoopManager.inEventLoop();
 		// 绑定端口
-		HostAndPort localAddress = acceptManager.bindRange(outer, portRange, initializer);
+		HostAndPort localAddress = acceptManager.bindRange(host, portRange, initializer);
 		// 保存用户信息
 		userInfoMap.computeIfAbsent(netContext.localGuid(), localGuid -> new UserInfo(netContext, localAddress, initializer, httpRequestHandler));
 

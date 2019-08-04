@@ -70,29 +70,29 @@ public interface NetContext {
 
 	/**
 	 * 监听某个端口
-	 * @param outer 是否是外网断开
+	 * @param host 地址
 	 * @param port 指定端口号
 	 * @param initializer 如何初始化channel
 	 * @param lifecycleAware 生命周期监听器
 	 * @param messageHandler 消息处理器
 	 * @return future 可以等待绑定完成。
 	 */
-	default ListenableFuture<HostAndPort> bind(boolean outer, int port, ChannelInitializer<SocketChannel> initializer,
+	default ListenableFuture<HostAndPort> bind(String host, int port, ChannelInitializer<SocketChannel> initializer,
 											   SessionLifecycleAware<S2CSession> lifecycleAware,
 											   MessageHandler messageHandler) {
-		return this.bindRange(outer, new PortRange(port, port), initializer, lifecycleAware, messageHandler);
+		return this.bindRange(host, new PortRange(port, port), initializer, lifecycleAware, messageHandler);
 	}
 
 	/**
 	 * 监听某个端口
-	 * @param outer 是否是外网断开
+	 * @param host 地址
 	 * @param portRange 端口范围
 	 * @param initializer 如何初始化channel
 	 * @param lifecycleAware 生命周期监听器
 	 * @param messageHandler 消息处理器
 	 * @return future 可以等待绑定完成。
 	 */
-	ListenableFuture<HostAndPort> bindRange(boolean outer, PortRange portRange, ChannelInitializer<SocketChannel> initializer,
+	ListenableFuture<HostAndPort> bindRange(String host, PortRange portRange, ChannelInitializer<SocketChannel> initializer,
 											SessionLifecycleAware<S2CSession> lifecycleAware,
 											MessageHandler messageHandler);
 
@@ -150,27 +150,27 @@ public interface NetContext {
 
 	/**
 	 * 监听某个端口
-	 * @param outer 是否是外网断开
+	 * @param host 地址
 	 * @param port 指定端口号
 	 * @param initializer 如何初始化channel
 	 * @param httpRequestHandler http请求处理器
 	 * @return future 可以等待绑定完成。
 	 */
-	default ListenableFuture<HostAndPort> bind(boolean outer, int port, ChannelInitializer<SocketChannel> initializer,
+	default ListenableFuture<HostAndPort> bind(String host, int port, ChannelInitializer<SocketChannel> initializer,
 							 HttpRequestHandler httpRequestHandler) {
-		return this.bindRange(outer, new PortRange(port, port), initializer, httpRequestHandler);
+		return this.bindRange(host, new PortRange(port, port), initializer, httpRequestHandler);
 	}
 
 	/**
 	 * 在指定端口范围内监听某一个端口。
 	 *
-	 * @param outer 是否是外网断开
+	 * @param host 地址
 	 * @param portRange 端口范围
 	 * @param initializer 如何初始化channel
 	 * @param httpRequestHandler http请求处理器
 	 * @return future 可以等待绑定完成。
 	 */
-	ListenableFuture<HostAndPort> bindRange(boolean outer, PortRange portRange, ChannelInitializer<SocketChannel> initializer,
+	ListenableFuture<HostAndPort> bindRange(String host, PortRange portRange, ChannelInitializer<SocketChannel> initializer,
 											HttpRequestHandler httpRequestHandler);
 
 	/**

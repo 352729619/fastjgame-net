@@ -115,10 +115,10 @@ class NetContextImp implements NetContext {
 	}
 
 	@Override
-	public ListenableFuture<HostAndPort> bindRange(boolean outer, PortRange portRange, ChannelInitializer<SocketChannel> initializer, SessionLifecycleAware<S2CSession> lifecycleAware, MessageHandler messageHandler) {
+	public ListenableFuture<HostAndPort> bindRange(String host, PortRange portRange, ChannelInitializer<SocketChannel> initializer, SessionLifecycleAware<S2CSession> lifecycleAware, MessageHandler messageHandler) {
 		return netEventLoop.submit(() -> {
 			try {
-				return managerWrapper.getS2CSessionManager().bindRange(this, outer, portRange,
+				return managerWrapper.getS2CSessionManager().bindRange(this, host, portRange,
 						initializer, lifecycleAware, messageHandler);
 			} catch (BindException e){
 				ConcurrentUtils.rethrow(e);
@@ -145,10 +145,10 @@ class NetContextImp implements NetContext {
 
 
 	@Override
-	public ListenableFuture<HostAndPort> bindRange(boolean outer, PortRange portRange, ChannelInitializer<SocketChannel> initializer, HttpRequestHandler httpRequestHandler) {
+	public ListenableFuture<HostAndPort> bindRange(String host, PortRange portRange, ChannelInitializer<SocketChannel> initializer, HttpRequestHandler httpRequestHandler) {
 		return netEventLoop.submit(() -> {
 			try {
-				return managerWrapper.getHttpSessionManager().bindRange(this, outer, portRange,
+				return managerWrapper.getHttpSessionManager().bindRange(this, host, portRange,
 						initializer, httpRequestHandler);
 			} catch (Exception e){
 				ConcurrentUtils.rethrow(e);

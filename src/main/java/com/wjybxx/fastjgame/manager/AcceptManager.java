@@ -64,12 +64,12 @@ public class AcceptManager {
      * 监听某个端口,阻塞直到成功或失败。
      * 参数意义可参考{@link java.net.StandardSocketOptions}
      * 或 - https://www.cnblogs.com/googlemeoften/p/6082785.html
-     * @param outer 是否外网，若外网不存在，则绑定的是内网
+     * @param host 地址
      * @param port 需要绑定的端口
      * @param initializer channel初始化类，根据使用的协议(eg:tcp,ws) 和 序列化方式(eg:json,protoBuf)确定
      * @return 监听成功成功则返回绑定的地址，失败则返回null
      */
-    public HostAndPort bind(boolean outer, int port, ChannelInitializer<SocketChannel> initializer) throws BindException {
+    public HostAndPort bind(String host, int port, ChannelInitializer<SocketChannel> initializer) throws BindException {
         ServerBootstrap serverBootstrap = new ServerBootstrap();
         serverBootstrap.group(nettyThreadManager.getBossGroup(), nettyThreadManager.getWorkerGroup());
 
@@ -88,12 +88,11 @@ public class AcceptManager {
         serverBootstrap.childOption(ChannelOption.SO_LINGER,0);
         serverBootstrap.childOption(ChannelOption.SO_REUSEADDR,true);
 
-        String host = outer ? netConfigManager.outerIp() : netConfigManager.localIp();
         ChannelFuture channelFuture = serverBootstrap.bind(host, port);
         try {
             channelFuture.sync();
             logger.info("bind {}:{} success.",host,port);
-            return outer?new HostAndPort(netConfigManager.outerIp(), port):new HostAndPort(netConfigManager.localIp(), port);
+            return new HostAndPort(host, port);
         } catch (InterruptedException e) {
             // ignore e
             NetUtils.closeQuietly(channelFuture);
@@ -107,12 +106,12 @@ public class AcceptManager {
 
     /**
      * 在某个端口范围内选择一个端口监听.
-     * @param outer 否外网，若外网不存在，则绑定的是内网
+     * @param host 地址
      * @param portRange 端口范围
      * @param initializer channel初始化类
      * @return 监听成功的端口号，失败返回null
      */
-    public HostAndPort bindRange(boolean outer, PortRange portRange, ChannelInitializer<SocketChannel> initializer) throws BindException {
+    public HostAndPort bindRange(String host, PortRange portRange, ChannelInitializer<SocketChannel> initializer) throws BindException {
         if (portRange.startPort <=0){
             throw new IllegalArgumentException("fromPort " + portRange.startPort);
         }
@@ -121,7 +120,7 @@ public class AcceptManager {
         }
         for (int port = portRange.startPort; port<= portRange.endPort; port++){
             try {
-                return bind(outer,port, initializer);
+                return bind(host, port, initializer);
             }catch (BindException e){
                 // ignore
             }

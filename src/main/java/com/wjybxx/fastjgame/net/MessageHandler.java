@@ -16,6 +16,8 @@
 
 package com.wjybxx.fastjgame.net;
 
+import javax.annotation.Nullable;
+
 /**
  * 业务逻辑消息处理器，包括单向消息，rpc请求
  *
@@ -29,18 +31,18 @@ public interface MessageHandler {
     /**
      * 处理该会话发来单向的消息
      * @param session 会话信息
-     * @param message 业务逻辑消息
+     * @param message 业务逻辑消息，如果编解码异常，则可能为null。
      * @throws Exception error
      */
-    void onMessage(Session session, Object message) throws Exception;
+    void onMessage(Session session, @Nullable Object message) throws Exception;
 
     /**
      * 处理该会话发来的Rpc请求
      * @param session 会话信息
-     * @param request rpc请求
+     * @param request rpc请求，如果编解码异常，则可能为null。
      * @param responseChannel 返回结果的通道
      * @throws Exception error
      */
-    void onRpcRequest(Session session, Object request, RpcResponseChannel responseChannel) throws Exception;
+    void onRpcRequest(Session session, @Nullable Object request, RpcResponseChannel responseChannel) throws Exception;
 
 }
