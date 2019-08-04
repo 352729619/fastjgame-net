@@ -16,10 +16,12 @@
 
 package com.wjybxx.fastjgame.net;
 
-import com.wjybxx.fastjgame.annotation.UnstableApi;
+import javax.annotation.Nonnull;
 
 /**
- * 返回rpc结果的通道
+ * 返回rpc结果的通道。
+ * 注意：该channel是一次性的，只可以使用一次(返回一次结果)，多次调用将抛出异常。
+ *
  * @author houlei
  * @version 1.0
  * date - 2019/8/3
@@ -27,10 +29,21 @@ import com.wjybxx.fastjgame.annotation.UnstableApi;
 public interface RpcResponseChannel {
 
 	/**
+	 * 返回rpc调用结果，表示调用成功。
+	 * @param body rpc调用结果
+	 */
+	void writeSuccess(@Nonnull Object body);
+
+	/**
+	 * 返回rpc调用结果，表示调用失败。
+	 * @param errorCode rpc调用错误码，注意：{@link RpcResultCode#hasBody(RpcResultCode)}必须返回false。
+	 */
+	void writeFailure(@Nonnull RpcResultCode errorCode);
+
+	/**
 	 * 返回rpc调用结果。
-	 * 注意：该方法仅能调用一次，多次调用将抛出异常。
 	 * @param rpcResponse rpc调用结果
 	 */
-	void write(RpcResponse rpcResponse);
+	void write(@Nonnull RpcResponse rpcResponse);
 
 }

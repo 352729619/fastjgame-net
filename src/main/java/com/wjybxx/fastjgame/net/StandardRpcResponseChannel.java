@@ -16,6 +16,7 @@
 
 package com.wjybxx.fastjgame.net;
 
+import javax.annotation.Nonnull;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
@@ -41,7 +42,17 @@ public class StandardRpcResponseChannel implements RpcResponseChannel{
 	}
 
 	@Override
-	public final void write(RpcResponse rpcResponse) {
+	public void writeSuccess(@Nonnull Object body) {
+		write(new RpcResponse(RpcResultCode.SUCCESS, body));
+	}
+
+	@Override
+	public void writeFailure(@Nonnull RpcResultCode errorCode) {
+		write(new RpcResponse(errorCode, null));
+	}
+
+	@Override
+	public final void write(@Nonnull RpcResponse rpcResponse) {
         if (writable.compareAndSet(true, false)) {
             session.sendRpcResponse(sync, requestGuid, rpcResponse);
         } else {

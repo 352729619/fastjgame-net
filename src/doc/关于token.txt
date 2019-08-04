@@ -1,3 +1,7 @@
+如何区分建立连接请求的先后顺序？
+token不同时，通过token的createTimes区分先后
+token相同时，通过请求中的sndTokenTimes区分先后
+
 客户端发来的token分布：
 forbidden(禁用) ---->   preUsing(限定可重连) -->  unused(无效) ----> curUsing(可重连)   -----> newer(可登录)
 

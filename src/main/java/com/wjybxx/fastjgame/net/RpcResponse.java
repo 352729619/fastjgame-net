@@ -16,6 +16,8 @@
 
 package com.wjybxx.fastjgame.net;
 
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import javax.annotation.concurrent.Immutable;
 
 /**
@@ -41,7 +43,7 @@ public final class RpcResponse {
 	/** 响应结果 */
 	private final Object body;
 
-	public RpcResponse(RpcResultCode resultCode, Object body) {
+	public RpcResponse(@Nonnull RpcResultCode resultCode, @Nullable Object body) {
 		// 必要的校验
 		if (RpcResultCode.hasBody(resultCode) && null == body) {
 			throw new IllegalStateException(resultCode.name() + " require body.");
