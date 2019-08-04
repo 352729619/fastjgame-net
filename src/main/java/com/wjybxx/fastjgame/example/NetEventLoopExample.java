@@ -96,7 +96,7 @@ public class NetEventLoopExample {
 
     private static ListenableFuture<HostAndPort> startTcpServer(CodecHelper codecHelper, NetContext context1) {
         TCPServerChannelInitializer tcpServerChannelInitializer = context1.newTcpServerInitializer(codecHelper);
-        ListenableFuture<HostAndPort> bindFuture = context1.bindRange(false, new PortRange(10000, 10050), tcpServerChannelInitializer,
+        ListenableFuture<HostAndPort> bindFuture = context1.bindRange(NetUtils.getLocalIp(), new PortRange(10000, 10050), tcpServerChannelInitializer,
                 new SeverLifeAware(), new ServerMessageHandler());
         bindFuture.awaitUninterruptibly();
         return bindFuture;
@@ -137,7 +137,7 @@ public class NetEventLoopExample {
 
     private static void startHttpService(NetContext context2) {
         HttpServerInitializer httpServerInitializer = context2.newHttpServerInitializer();
-        ListenableFuture<HostAndPort> httpPortFuture = context2.bindRange(true, new PortRange(20001, 200050), httpServerInitializer, (httpSession, path, requestParams) -> {
+        ListenableFuture<HostAndPort> httpPortFuture = context2.bindRange(NetUtils.getLocalIp(), new PortRange(20001, 200050), httpServerInitializer, (httpSession, path, requestParams) -> {
             System.out.println("onHttpRequest, path = " + path + ", param = " + requestParams.toString());
             httpSession.writeAndFlush(HttpResponseHelper.newJsonResponse("Hello World"));
         });
