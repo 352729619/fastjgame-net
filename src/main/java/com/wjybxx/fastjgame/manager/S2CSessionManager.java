@@ -78,7 +78,7 @@ public class S2CSessionManager implements SessionManager {
     private final TokenManager tokenManager;
     private final AcceptManager acceptManager;
     private final ForbiddenTokenHelper forbiddenTokenHelper;
-    /** logicWorld的会话信息 */
+    /** 所有用户的会话信息 */
     private final Long2ObjectMap<UserInfo> userInfoMap = new Long2ObjectOpenHashMap<>();
 
     @Inject
@@ -128,7 +128,7 @@ public class S2CSessionManager implements SessionManager {
 
     /**
      * 获取session
-     * @param localGuid 对应的logicWorld
+     * @param localGuid 对应的本地用户guid
      * @param clientGuid 连接的客户端的guid
      * @return 如果存在则返回对应的session，否则返回null
      */
@@ -511,7 +511,7 @@ public class S2CSessionManager implements SessionManager {
      */
     private void notifyClientExit(Channel channel, SessionWrapper sessionWrapper){
         long clientGuid = sessionWrapper.getSession().getClientGuid();
-        Token failToken = tokenManager.newFailToken(clientGuid, sessionWrapper.getLogicWorldGuid());
+        Token failToken = tokenManager.newFailToken(clientGuid, sessionWrapper.getLocalGuid());
         notifyTokenCheckResult(channel,sessionWrapper.getSndTokenTimes(),false, -1, failToken);
     }
 
@@ -827,7 +827,7 @@ public class S2CSessionManager implements SessionManager {
             return messageQueue.getCacheMessageNum();
         }
 
-        long getLogicWorldGuid() {
+        long getLocalGuid() {
             return userInfo.netContext.localGuid();
         }
 

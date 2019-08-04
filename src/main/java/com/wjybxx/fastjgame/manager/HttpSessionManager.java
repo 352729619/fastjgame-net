@@ -120,7 +120,7 @@ public class HttpSessionManager {
 	}
 
 	private void removeUserSession(UserInfo userInfo) {
-		// 如果logicWorld持有了httpSession的引用，长时间没有完成响应的话，这里关闭可能导致一些错误
+		// 如果 用户 持有了httpSession的引用，长时间没有完成响应的话，这里关闭可能导致一些错误
 		CollectionUtils.removeIfAndThen(userInfo.sessionWrapperMap,
 				(channel, sessionWrapper) -> true,
 				(channel, sessionWrapper) -> NetUtils.closeQuietly(channel));

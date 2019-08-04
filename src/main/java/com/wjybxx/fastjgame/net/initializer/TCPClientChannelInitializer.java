@@ -36,7 +36,7 @@ import javax.annotation.concurrent.ThreadSafe;
 @ThreadSafe
 public class TCPClientChannelInitializer extends ChannelInitializer<SocketChannel> {
 
-    /** 是哪一个logicWorld发起的连接 */
+    /** 是哪一个用户发起的连接 */
     private final long localGuid;
     private final long serverGuid;
 

@@ -74,7 +74,7 @@ public class C2SSessionManager implements SessionManager {
     private final AcceptManager acceptManager;
     private final NetTimeManager netTimeManager;
     private final TokenManager tokenManager;
-    /** 所有logicWorld的会话信息 */
+    /** 所有用户的会话信息 */
     private final Long2ObjectMap<UserInfo> userInfoMap = new Long2ObjectOpenHashMap<>();
 
     @Inject
@@ -108,7 +108,7 @@ public class C2SSessionManager implements SessionManager {
 
     /**
      * 获取session
-     * @param localGuid 对应的logicWorld
+     * @param localGuid 对应的本地用户标识
      * @param serverGuid 服务器guid
      * @return 如果存在则返回对应的session，否则返回null
      */

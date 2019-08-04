@@ -23,9 +23,11 @@ import com.wjybxx.fastjgame.concurrent.ListenableFuture;
 import com.wjybxx.fastjgame.eventloop.NetEventLoopGroup;
 import com.wjybxx.fastjgame.eventloop.NetEventLoopGroupImp;
 import com.wjybxx.fastjgame.misc.HostAndPort;
+import com.wjybxx.fastjgame.misc.HttpResponseHelper;
 import com.wjybxx.fastjgame.misc.NetContext;
 import com.wjybxx.fastjgame.misc.PortRange;
 import com.wjybxx.fastjgame.net.*;
+import com.wjybxx.fastjgame.net.initializer.HttpServerInitializer;
 import com.wjybxx.fastjgame.net.initializer.TCPClientChannelInitializer;
 import com.wjybxx.fastjgame.net.initializer.TCPServerChannelInitializer;
 import com.wjybxx.fastjgame.utils.NetUtils;
@@ -67,21 +69,40 @@ public class NetEventLoopTest {
         NetContext context1 = future1.tryGet();
         NetContext context2 = future2.tryGet();
 
+        ListenableFuture<HostAndPort> bindFuture = startTcpServer(codecHelper, context1);
+        HostAndPort bindAddress = bindFuture.tryGet();
+        System.out.println(bindAddress);
+        // ----
+        ListenableFuture<?> connect = startTcpClient(codecHelper, serverGuid, context2, bindAddress);
+
+        connect.awaitUninterruptibly();
+
+        syncGetTest(context1);
+
+        asynGetTest(context1);
+
+        startHttpService(context2);
+
+        netGroup.terminationFuture().awaitUninterruptibly();
+    }
+
+    private static ListenableFuture<?> startTcpClient(CodecHelper codecHelper, int serverGuid, NetContext context2, HostAndPort bindAddress) {
+        TCPClientChannelInitializer tcpClientChannelInitializer = new TCPClientChannelInitializer(context2.localGuid(), serverGuid, 8192,
+                codecHelper, context2.netEventManager());
+        return context2.connect(serverGuid, RoleType.TEST_SERVER, bindAddress, () -> tcpClientChannelInitializer,
+                new ClientLifeAware(), new ClientMessageHandler());
+    }
+
+    private static ListenableFuture<HostAndPort> startTcpServer(CodecHelper codecHelper, NetContext context1) {
         TCPServerChannelInitializer tcpServerChannelInitializer = new TCPServerChannelInitializer(context1.localGuid(), 8192, codecHelper,
                 context1.netEventManager());
         ListenableFuture<HostAndPort> bindFuture = context1.bindRange(false, new PortRange(10000, 10050), () -> tcpServerChannelInitializer,
                 new SeverLifeAware(), new ServerMessageHandler());
         bindFuture.awaitUninterruptibly();
-        HostAndPort bindAddress = bindFuture.tryGet();
-        System.out.println(bindAddress);
-        // ----
-        TCPClientChannelInitializer tcpClientChannelInitializer = new TCPClientChannelInitializer(context2.localGuid(), serverGuid, 8192,
-                codecHelper, context2.netEventManager());
-        ListenableFuture<?> connect = context2.connect(serverGuid, RoleType.TEST_SERVER, bindAddress, () -> tcpClientChannelInitializer,
-                new ClientLifeAware(), new ClientMessageHandler());
+        return bindFuture;
+    }
 
-        connect.awaitUninterruptibly();
-
+    private static void syncGetTest(NetContext context1) {
         try {
             Response response = context1.syncGet("www.baidu.com", new HashMap<>());
             System.out.println("syncGetCode: " + response.code());
@@ -92,7 +113,9 @@ public class NetEventLoopTest {
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
 
+    private static void asynGetTest(NetContext context1) {
         context1.asyncGet("www.baidu.com", new HashMap<>(), new OkHttpCallback() {
             @Override
             public void onFailure(@Nonnull Call call, @Nonnull IOException cause) {
@@ -110,8 +133,17 @@ public class NetEventLoopTest {
                 NetUtils.closeQuietly(response);
             }
         });
+    }
 
-        netGroup.terminationFuture().awaitUninterruptibly();
+    private static void startHttpService(NetContext context2) {
+        HttpServerInitializer httpServerInitializer = new HttpServerInitializer(context2.localGuid(), context2.netEventManager());
+        ListenableFuture<HostAndPort> httpPortFuture = context2.bindRange(true, new PortRange(20001, 200050),
+                () -> httpServerInitializer, (httpSession, path, requestParams) -> {
+            System.out.println("onHttpRequest, path = " + path + ", param = " + requestParams.toString());
+            httpSession.writeAndFlush(HttpResponseHelper.newJsonResponse("Hello World"));
+        });
+        httpPortFuture.awaitUninterruptibly();
+        System.out.println("httpPort = " + httpPortFuture.tryGet());
     }
 
     private static class SeverLifeAware implements SessionLifecycleAware<S2CSession> {

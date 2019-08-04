@@ -35,7 +35,7 @@ import java.io.IOException;
 @NotThreadSafe
 public class ServerCodec extends BaseCodec {
 
-    /** 该channel关联哪一个logicWorld */
+    /** 该channel关联哪本地哪一个用户 */
     private final long localGuid;
     /** 缓存的客户端guid，关联的远程 */
     private long clientGuid = Long.MIN_VALUE;

@@ -36,12 +36,12 @@ import javax.annotation.concurrent.ThreadSafe;
 @ThreadSafe
 public class HttpServerInitializer extends ChannelInitializer<SocketChannel> {
 
-    /** 是哪一个logicWorld在监听 */
-    private final long logicWorldGuid;
+    /** 是哪一个用户在监听 */
+    private final long localGuid;
     private final NetEventManager netEventManager;
 
-    public HttpServerInitializer(long logicWorldGuid, NetEventManager netEventManager) {
-        this.logicWorldGuid = logicWorldGuid;
+    public HttpServerInitializer(long localGuid, NetEventManager netEventManager) {
+        this.localGuid = localGuid;
         this.netEventManager = netEventManager;
     }
 
@@ -51,6 +51,6 @@ public class HttpServerInitializer extends ChannelInitializer<SocketChannel> {
         pipeline.addLast(new HttpServerCodec());
         // http请求和响应可能被分段，利用聚合器将http请求合并为完整的Http请求
         pipeline.addLast(new HttpObjectAggregator(65535));
-        pipeline.addLast(new HttpRequestParamDecoder(logicWorldGuid, netEventManager));
+        pipeline.addLast(new HttpRequestParamDecoder(localGuid, netEventManager));
     }
 }

@@ -50,13 +50,13 @@ public class HttpRequestParamDecoder extends SimpleChannelInboundHandler<FullHtt
 
     private static final Logger logger = LoggerFactory.getLogger(HttpRequestParamDecoder.class);
 
-    /** 该channel是哪个LogicWorld绑定的 */
-    private final long logicWorldGuid;
+    /** localGuid */
+    private final long localGuid;
     private final NetEventManager netEventManager;
 
-    public HttpRequestParamDecoder(long logicWorldGuid, NetEventManager netEventManager) {
+    public HttpRequestParamDecoder(long localGuid, NetEventManager netEventManager) {
         super(true);
-        this.logicWorldGuid = logicWorldGuid;
+        this.localGuid = localGuid;
         this.netEventManager = netEventManager;
     }
 
@@ -101,7 +101,7 @@ public class HttpRequestParamDecoder extends SimpleChannelInboundHandler<FullHtt
             }
         }
         HttpRequestTO httpRequestTO = new HttpRequestTO(path,new MapConfigWrapper(paramsMap));
-        HttpRequestEventParam httpRequestEventParam = new HttpRequestEventParam(ctx.channel(), logicWorldGuid, httpRequestTO);
+        HttpRequestEventParam httpRequestEventParam = new HttpRequestEventParam(ctx.channel(), localGuid, httpRequestTO);
         netEventManager.publishEvent(NetEventType.HTTP_REQUEST, httpRequestEventParam);
     }
 
