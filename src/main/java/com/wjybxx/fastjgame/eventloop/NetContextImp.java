@@ -18,13 +18,12 @@ package com.wjybxx.fastjgame.eventloop;
 
 import com.wjybxx.fastjgame.concurrent.EventLoop;
 import com.wjybxx.fastjgame.concurrent.ListenableFuture;
-import com.wjybxx.fastjgame.manager.NetEventManager;
 import com.wjybxx.fastjgame.manager.NetManagerWrapper;
 import com.wjybxx.fastjgame.misc.HostAndPort;
 import com.wjybxx.fastjgame.misc.NetContext;
 import com.wjybxx.fastjgame.misc.PortRange;
 import com.wjybxx.fastjgame.net.*;
-import com.wjybxx.fastjgame.net.initializer.ChannelInitializerSupplier;
+import com.wjybxx.fastjgame.net.initializer.*;
 import com.wjybxx.fastjgame.utils.ConcurrentUtils;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.socket.SocketChannel;
@@ -78,9 +77,29 @@ class NetContextImp implements NetContext {
 		return netEventLoop;
 	}
 
+
 	@Override
-	public NetEventManager netEventManager() {
-		return managerWrapper.getNetEventManager();
+	public TCPServerChannelInitializer newTcpServerInitializer(CodecHelper codecHelper) {
+		return new TCPServerChannelInitializer(localGuid, managerWrapper.getNetConfigManager().maxFrameLength(),
+				codecHelper, managerWrapper.getNetEventManager());
+	}
+
+	@Override
+	public TCPClientChannelInitializer newTcpClientInitializer(long remoteGuid, CodecHelper codecHelper) {
+		return new TCPClientChannelInitializer(localGuid, remoteGuid, managerWrapper.getNetConfigManager().maxFrameLength(),
+				codecHelper, managerWrapper.getNetEventManager());
+	}
+
+	@Override
+	public WsServerChannelInitializer newWsServerInitializer(String websocketUrl, CodecHelper codecHelper) {
+		return new WsServerChannelInitializer(localGuid, websocketUrl, managerWrapper.getNetConfigManager().maxFrameLength(),
+				codecHelper, managerWrapper.getNetEventManager());
+	}
+
+	@Override
+	public WsClientChannelInitializer newWsClientInitializer(long remoteGuid, String websocketUrl, CodecHelper codecHelper) {
+		return new WsClientChannelInitializer(localGuid, remoteGuid, websocketUrl, managerWrapper.getNetConfigManager().maxFrameLength(),
+				codecHelper, managerWrapper.getNetEventManager());
 	}
 
 	@Override
@@ -118,6 +137,12 @@ class NetContextImp implements NetContext {
 	}
 
 	// ------------------------------------------- http 实现 ----------------------------------------
+
+	@Override
+	public HttpServerInitializer newHttpServerInitializer() {
+		return new HttpServerInitializer(localGuid, managerWrapper.getNetEventManager());
+	}
+
 
 	@Override
 	public ListenableFuture<HostAndPort> bindRange(boolean outer, PortRange portRange, ChannelInitializer<SocketChannel> initializer, HttpRequestHandler httpRequestHandler) {

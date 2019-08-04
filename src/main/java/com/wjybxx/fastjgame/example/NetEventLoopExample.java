@@ -89,15 +89,13 @@ public class NetEventLoopExample {
     }
 
     private static ListenableFuture<?> startTcpClient(CodecHelper codecHelper, int serverGuid, NetContext context2, HostAndPort bindAddress) {
-        TCPClientChannelInitializer tcpClientChannelInitializer = new TCPClientChannelInitializer(context2.localGuid(), serverGuid, 8192,
-                codecHelper, context2.netEventManager());
+        TCPClientChannelInitializer tcpClientChannelInitializer = context2.newTcpClientInitializer(serverGuid, codecHelper);
         return context2.connect(serverGuid, RoleType.TEST_SERVER, bindAddress, () -> tcpClientChannelInitializer,
                 new ClientLifeAware(), new ClientMessageHandler());
     }
 
     private static ListenableFuture<HostAndPort> startTcpServer(CodecHelper codecHelper, NetContext context1) {
-        TCPServerChannelInitializer tcpServerChannelInitializer = new TCPServerChannelInitializer(context1.localGuid(), 8192, codecHelper,
-                context1.netEventManager());
+        TCPServerChannelInitializer tcpServerChannelInitializer = context1.newTcpServerInitializer(codecHelper);
         ListenableFuture<HostAndPort> bindFuture = context1.bindRange(false, new PortRange(10000, 10050), tcpServerChannelInitializer,
                 new SeverLifeAware(), new ServerMessageHandler());
         bindFuture.awaitUninterruptibly();
@@ -138,7 +136,7 @@ public class NetEventLoopExample {
     }
 
     private static void startHttpService(NetContext context2) {
-        HttpServerInitializer httpServerInitializer = new HttpServerInitializer(context2.localGuid(), context2.netEventManager());
+        HttpServerInitializer httpServerInitializer = context2.newHttpServerInitializer();
         ListenableFuture<HostAndPort> httpPortFuture = context2.bindRange(true, new PortRange(20001, 200050), httpServerInitializer, (httpSession, path, requestParams) -> {
             System.out.println("onHttpRequest, path = " + path + ", param = " + requestParams.toString());
             httpSession.writeAndFlush(HttpResponseHelper.newJsonResponse("Hello World"));

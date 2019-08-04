@@ -19,9 +19,8 @@ package com.wjybxx.fastjgame.misc;
 import com.wjybxx.fastjgame.concurrent.EventLoop;
 import com.wjybxx.fastjgame.concurrent.ListenableFuture;
 import com.wjybxx.fastjgame.eventloop.NetEventLoop;
-import com.wjybxx.fastjgame.manager.NetEventManager;
 import com.wjybxx.fastjgame.net.*;
-import com.wjybxx.fastjgame.net.initializer.ChannelInitializerSupplier;
+import com.wjybxx.fastjgame.net.initializer.*;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.socket.SocketChannel;
 import okhttp3.Response;
@@ -61,12 +60,6 @@ public interface NetContext {
 	 * （可实现多个NetContext绑定到相同的NetEventLoop，可消除不必要的同步）
 	 */
 	NetEventLoop netEventLoop();
-
-	/**
-	 * 获取网络事件管理器组件。
-	 * 创建{@link ChannelInitializerSupplier}需要使用。
-	 */
-	NetEventManager netEventManager();
 
 	/**
 	 * 从注册的NetEventLoop上取消注册，会关闭该context关联的所有会话。
@@ -116,6 +109,42 @@ public interface NetContext {
 	ListenableFuture<?> connect(long remoteGuid, RoleType remoteRole, HostAndPort remoteAddress, ChannelInitializerSupplier initializerSupplier,
 								SessionLifecycleAware<C2SSession> lifecycleAware,
 								MessageHandler messageHandler);
+
+	/**
+	 * 工厂方法，创建一个用于tcp监听的Initializer.
+	 *
+	 * @param codecHelper 消息包编解码帮助类
+	 * @return 用于初始化http端口
+	 */
+	TCPServerChannelInitializer newTcpServerInitializer(CodecHelper codecHelper);
+
+	/**
+	 * 工厂方法，创建一个用于进行tcp连接的initializer
+	 *
+	 * @param remoteGuid 远程用户id
+	 * @param codecHelper 消息包编解码帮助类
+	 * @return 用于初始化http端口
+	 */
+	TCPClientChannelInitializer newTcpClientInitializer(long remoteGuid, CodecHelper codecHelper);
+
+	/**
+	 * 工厂方法，创建一个用于websokect监听的Initializer.
+	 *
+	 * @param websocketUrl 触发websocket升级的地址
+	 * @param codecHelper 消息包编解码帮助类
+	 * @return 用于初始化websocket端口
+	 */
+	WsServerChannelInitializer newWsServerInitializer(String websocketUrl, CodecHelper codecHelper);
+	/**
+	 * 工厂方法，创建一个用于websocket连接的initializer
+	 *
+	 * @param codecHelper 消息包编解码帮助类
+	 * @param remoteGuid  远程地址
+	 * @param websocketUrl 触发websocket升级的地址
+	 * @return 用于初始化websocket端口
+	 */
+
+	WsClientChannelInitializer newWsClientInitializer(long remoteGuid, String websocketUrl, CodecHelper codecHelper);
 
 	//  --------------------------------------- http支持 -----------------------------------------
 
@@ -172,4 +201,12 @@ public interface NetContext {
 	 * @param okHttpCallback 回调
 	 */
 	void asyncPost(String url, Map<String,String> params, OkHttpCallback okHttpCallback);
+
+	/**
+	 * 工厂方法，创建一个用于http监听的Initializer.
+	 *
+	 * @return 用于初始化http端口
+	 */
+	HttpServerInitializer newHttpServerInitializer();
+
 }
