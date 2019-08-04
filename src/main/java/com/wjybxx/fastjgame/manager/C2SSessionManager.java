@@ -897,7 +897,7 @@ public class C2SSessionManager implements SessionManager {
         protected void onRcvServerAckPong(Channel eventChannel, AckPingPongEventParam ackPongParam) {
             hasPingMessage = false;
             ifSequenceAndAckOk(ackPongParam.messageTO(), ConcurrentUtils.NO_OP_TASK);
-            logger.info("send ack pong");
+            logger.info("rcv ack pong");
         }
 
         @Override
