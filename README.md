@@ -35,3 +35,5 @@ fastjgame-net模块独立，一个高性能的可扩展底层通信框架。支�
 ### 测试用例
    在example下有一个NetEventLoopExample，可以直接启动。 不过你可能需要先下载[game-utils模块](https://github.com/hl845740757/fastjgame-utils.git)，
    下载完成以后，install到本地maven仓库即可，然后就可以启动了。
+### Bugs
+   刚刚重构完，可能有一些遗漏的地方，会慢慢补全，如果发现bug，欢迎提出。
