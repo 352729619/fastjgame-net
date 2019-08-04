@@ -32,8 +32,11 @@ import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.util.HashSet;
+import java.util.Queue;
 import java.util.Set;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.LockSupport;
 
 /**
@@ -91,6 +94,14 @@ public class NetEventLoopImp extends SingleThreadEventLoop implements NetEventLo
 		s2CSessionManager.setManagerWrapper(managerWrapper);
 		c2SSessionManager.setManagerWrapper(managerWrapper);
 		httpSessionManager.setManagerWrapper(managerWrapper);
+	}
+
+	/**
+	 * NetEventLoop不执行阻塞类型的操作，不使用BlockingQueue
+	 */
+	@Override
+	protected Queue<Runnable> newTaskQueue(int maxTaskNum) {
+		return new ConcurrentLinkedQueue<>();
 	}
 
 	@Nullable
@@ -165,8 +176,12 @@ public class NetEventLoopImp extends SingleThreadEventLoop implements NetEventLo
 			}
 
 			// 每次循环休息一下下，避免CPU占有率过高
-			LockSupport.parkNanos(TimeUtils.NANO_PER_MILLISECOND * netConfigManager.frameInterval());
+			sleepQuietly();
 		}
+	}
+
+	private void sleepQuietly() {
+		LockSupport.parkNanos(TimeUtils.NANO_PER_MILLISECOND * netConfigManager.frameInterval());
 	}
 
 	@Override
