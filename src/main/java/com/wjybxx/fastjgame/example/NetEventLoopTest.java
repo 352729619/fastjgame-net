@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.wjybxx.fastjgame.test;
+package com.wjybxx.fastjgame.example;
 
 import com.wjybxx.fastjgame.concurrent.DefaultEventLoop;
 import com.wjybxx.fastjgame.concurrent.DefaultThreadFactory;
@@ -28,10 +28,17 @@ import com.wjybxx.fastjgame.misc.PortRange;
 import com.wjybxx.fastjgame.net.*;
 import com.wjybxx.fastjgame.net.initializer.TCPClientChannelInitializer;
 import com.wjybxx.fastjgame.net.initializer.TCPServerChannelInitializer;
-import com.wjybxx.fastjgame.protobuffer.p_center_scene;
-import com.wjybxx.fastjgame.protobuffer.p_common;
+import com.wjybxx.fastjgame.utils.NetUtils;
+import okhttp3.Call;
+import okhttp3.Response;
+
+import javax.annotation.Nonnull;
+import java.io.IOException;
+import java.util.HashMap;
 
 /**
+ * 网络事件循环测试用例。
+ *
  * @author wjybxx
  * @version 1.0
  * date - 2019/8/4
@@ -44,9 +51,9 @@ public class NetEventLoopTest {
                         p_center_scene.class),
                 new ProtoBufMessageSerializer());
 
-        NetEventLoopGroup netGroup = new NetEventLoopGroupImp(2, new DefaultThreadFactory("NET-EVENT-LOOP"));
-        EventLoop userEventLoop1 = new DefaultEventLoop(null, new DefaultThreadFactory("USER1"));
-        EventLoop userEventLoop2 = new DefaultEventLoop(null, new DefaultThreadFactory("USER2"));
+        NetEventLoopGroup netGroup = new NetEventLoopGroupImp(1, new DefaultThreadFactory("NET-EVENT-LOOP"));
+        EventLoop userEventLoop1 = new DefaultEventLoop(null, new DefaultThreadFactory("SERVER"));
+        EventLoop userEventLoop2 = new DefaultEventLoop(null, new DefaultThreadFactory("CLIENT"));
 
         final int serverGuid = 1;
         final int clientGuid = 2;
@@ -75,18 +82,49 @@ public class NetEventLoopTest {
 
         connect.awaitUninterruptibly();
 
+        try {
+            Response response = context1.syncGet("www.baidu.com", new HashMap<>());
+            System.out.println("syncGetCode: " + response.code());
+            if (response.body() != null) {
+                System.out.println(response.body().string());
+            }
+            NetUtils.closeQuietly(response);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        context1.asyncGet("www.baidu.com", new HashMap<>(), new OkHttpCallback() {
+            @Override
+            public void onFailure(@Nonnull Call call, @Nonnull IOException cause) {
+                printThreadInfo();
+                System.out.println("asyncGet onFailure.");
+            }
+
+            @Override
+            public void onResponse(@Nonnull Call call, @Nonnull Response response) throws IOException {
+                printThreadInfo();
+                System.out.println("[asyncGetCode]: " + response.code());
+                if (response.body() != null) {
+                    System.out.println(response.body().string());
+                }
+                NetUtils.closeQuietly(response);
+            }
+        });
+
         netGroup.terminationFuture().awaitUninterruptibly();
     }
 
     private static class SeverLifeAware implements SessionLifecycleAware<S2CSession> {
         @Override
         public void onSessionConnected(S2CSession session) {
-            System.out.println("onSessionConnected " + session);
+            printThreadInfo();
+            System.out.println("Server onSessionConnected " + session);
         }
 
         @Override
         public void onSessionDisconnected(S2CSession session) {
-            System.out.println("onSessionDisconnected " + session);
+            printThreadInfo();
+            System.out.println("Server onSessionDisconnected " + session);
         }
     }
 
@@ -94,6 +132,7 @@ public class NetEventLoopTest {
 
         @Override
         public void onMessage(Session session, Object message) throws Exception {
+            printThreadInfo();
             if (message instanceof p_center_scene.p_center_cross_scene_hello) {
                 p_center_scene.p_center_cross_scene_hello hello = (p_center_scene.p_center_cross_scene_hello) message;
                 System.out.println("Server onMessage: " + hello);
@@ -104,9 +143,11 @@ public class NetEventLoopTest {
 
         @Override
         public void onRpcRequest(Session session, Object request, RpcResponseChannel responseChannel) throws Exception {
+            printThreadInfo();
+
             if (request instanceof p_center_scene.p_center_cross_scene_hello) {
                 p_center_scene.p_center_cross_scene_hello hello = (p_center_scene.p_center_cross_scene_hello) request;
-                System.out.println("onRpcRequest: " + request);
+                System.out.println("Server onRpcRequest: " + request);
                 // 再发回去
                 responseChannel.write(new RpcResponse(RpcResultCode.SUCCESS, hello));
             }
@@ -117,6 +158,7 @@ public class NetEventLoopTest {
 
         @Override
         public void onSessionConnected(C2SSession session) {
+            printThreadInfo();
             p_center_scene.p_center_cross_scene_hello.Builder builder = p_center_scene.p_center_cross_scene_hello.newBuilder();
             builder.setPlatformNumber(1);
             builder.setServerId(2);
@@ -125,7 +167,8 @@ public class NetEventLoopTest {
 
         @Override
         public void onSessionDisconnected(C2SSession session) {
-            System.out.println("onSessionDisconnected " + session);
+            printThreadInfo();
+            System.out.println("Client onSessionDisconnected " + session);
         }
     }
 
@@ -133,12 +176,21 @@ public class NetEventLoopTest {
 
         @Override
         public void onMessage(Session session, Object message) throws Exception {
-            System.out.println("client onMessage:" + message);
+            printThreadInfo();
+            System.out.println("Client client onMessage:" + message);
 
             // 再发回去
             session.rpc(message).addCallback((f) -> {
+                printThreadInfo();
                 System.out.println("rpc callback " + f.getBody());
             });
+
+            p_center_scene.p_center_cross_scene_hello.Builder builder = p_center_scene.p_center_cross_scene_hello.newBuilder();
+            builder.setPlatformNumber(2);
+            builder.setServerId(55);
+            RpcResponse rpcResponse = session.syncRpc(builder.build(), 100);
+            printThreadInfo();
+            System.out.println("syncRpc response: " + rpcResponse);
         }
 
         @Override
@@ -147,4 +199,7 @@ public class NetEventLoopTest {
         }
     }
 
+    private static void printThreadInfo() {
+        System.out.println("\nThread - " + Thread.currentThread());
+    }
 }

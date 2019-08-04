@@ -24,32 +24,29 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * @version 1.0
  * date - 2019/8/3
  */
-public abstract class AbstractRpcResponseChannel implements RpcResponseChannel{
+public class StandardRpcResponseChannel implements RpcResponseChannel{
 
 	private final AtomicBoolean writable = new AtomicBoolean(true);
 
+	private final AbstractSession session;
 	/** 是否是同步调用 */
 	private final boolean sync;
 	/** 该结果对应的请求id */
 	private final long requestGuid;
 
-	protected AbstractRpcResponseChannel(boolean sync, long requestGuid) {
-		this.sync = sync;
+    public StandardRpcResponseChannel(AbstractSession session, boolean sync, long requestGuid) {
+        this.session = session;
+        this.sync = sync;
 		this.requestGuid = requestGuid;
 	}
 
 	@Override
 	public final void write(RpcResponse rpcResponse) {
-		write0(sync, requestGuid, rpcResponse);
-	}
+        if (writable.compareAndSet(true, false)) {
+            session.sendRpcResponse(sync, requestGuid, rpcResponse);
+        } else {
+            throw new IllegalStateException("ResponseChannel can't be reused!");
+        }
+    }
 
-	private void write0(boolean sync, long requestGuid, RpcResponse rpcResponse) {
-		if (writable.compareAndSet(true, false)) {
-			doWrite(sync, requestGuid, rpcResponse);
-		} else {
-			throw new IllegalStateException("ResponseChannel can't be reused!");
-		}
-	}
-
-	protected abstract void doWrite(boolean sync, long requestGuid, RpcResponse rpcResponse);
 }

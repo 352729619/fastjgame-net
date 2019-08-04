@@ -65,7 +65,7 @@ import java.util.function.Consumer;
  * github - https://github.com/hl845740757
  */
 @NotThreadSafe
-public class C2SSessionManager {
+public class C2SSessionManager implements SessionManager {
 
     private static final Logger logger = LoggerFactory.getLogger(C2SSessionManager.class);
 
@@ -180,6 +180,7 @@ public class C2SSessionManager {
      * @param serverGuid to
      * @param message 消息内容
      */
+    @Override
     public void send(long localGuid, long serverGuid, @Nonnull Object message){
         ifSessionOk(localGuid, serverGuid, sessionWrapper -> {
             // 添加到待发送队列
@@ -195,7 +196,8 @@ public class C2SSessionManager {
      * @param requestGuid rpc请求号
      * @param response rpc调用结果
      */
-    public void sendRpcResponse(long localGuid, long serverGuid, boolean sync, long requestGuid, RpcResponse response) {
+    @Override
+    public void sendRpcResponse(long localGuid, long serverGuid, boolean sync, long requestGuid, @Nonnull RpcResponse response) {
         ifSessionOk(localGuid, serverGuid, sessionWrapper -> {
             UnsentRpcResponse unsentRpcResponse = new UnsentRpcResponse(requestGuid, response);
             if (sync) {
@@ -216,6 +218,7 @@ public class C2SSessionManager {
      * @param sync 是否是同步调用，同步调用会立即发送(会插队)，而非同步调用可能会先缓存，不是立即发送。
      * @param rpcPromise 接收结果的promise
      */
+    @Override
     public void rpc(long localGuid, long serverGuid, @Nonnull Object request, long timeoutMs, boolean sync, Promise<RpcResponse> rpcPromise){
         SessionWrapper sessionWrapper = getSessionWrapper(localGuid, serverGuid);
         if (null == sessionWrapper){
@@ -248,18 +251,20 @@ public class C2SSessionManager {
      * @param localGuid 本地用户标识
      * @param serverGuid 远程节点标识
      */
-    public void removeSession(long localGuid, long serverGuid, String reason){
+    @Override
+    public boolean removeSession(long localGuid, long serverGuid, String reason){
         UserInfo userInfo = userInfoMap.get(localGuid);
         // 没有该用户的会话
         if (userInfo == null) {
-            return;
+            return true;
         }
         // 删除会话
         SessionWrapper sessionWrapper = userInfo.sessionWrapperMap.remove(serverGuid);
         if (null == sessionWrapper){
-            return;
+            return true;
         }
         afterRemoved(sessionWrapper, reason);
+        return true;
     }
 
     /** 当会话删除之后 */
@@ -287,7 +292,44 @@ public class C2SSessionManager {
             logger.info("remove session by reason of {}, session info={}.", reason, session);
         }
     }
-    // region 事件处理
+
+    /**
+     *
+     * 删除某个用户的所有会话，(赶脚不必发送通知)
+     * @param localGuid 用户id
+     * @param reason 移除会话的原因
+     */
+    @Override
+    public void removeUserSession(long localGuid, String reason) {
+        UserInfo userInfo = userInfoMap.remove(localGuid);
+        if (null == userInfo) {
+            return;
+        }
+        removeUserSession(userInfo, reason);
+    }
+
+    /**
+     * 删除某个用户的所有会话，(赶脚不必发送通知)
+     * @param userInfo 用户信息
+     * @param reason 移除会话的原因
+     */
+    private void removeUserSession(UserInfo userInfo, String reason) {
+        FastCollectionsUtils.removeIfAndThen(userInfo.sessionWrapperMap,
+                (k, sessionWrapper) -> true,
+                (k, sessionWrapper) -> afterRemoved(sessionWrapper, reason));
+    }
+
+    /**
+     * 当用户所在的EventLoop关闭
+     */
+    @Override
+    public void onUserEventLoopTerminal(EventLoop userEventLoop) {
+        FastCollectionsUtils.removeIfAndThen(userInfoMap,
+                (k, userInfo) -> userInfo.netContext.localEventLoop() == userEventLoop,
+                (k, userInfo) -> removeUserSession(userInfo, "onUserEventLoopTerminal"));
+    }
+
+    // region  --------------------------------- 网络事件处理 ---------------------------------
 
     /**
      * 如果产生事件的channel可用的话，接下来干什么呢？
@@ -371,42 +413,7 @@ public class C2SSessionManager {
             c2SSessionState.onRcvServerMessage(eventChannel, oneWayMessageEventParam);
         });
     }
-
     // endregion
-
-    /**
-     * 当用户所在的EventLoop关闭
-     */
-    public void onUserEventLoopTerminal(EventLoop userEventLoop) {
-        FastCollectionsUtils.removeIfAndThen(userInfoMap,
-                (k, userInfo) -> userInfo.netContext.localEventLoop() == userEventLoop,
-                (k, userInfo) -> removeUserSession(userInfo, "onUserEventLoopTerminal"));
-    }
-
-    /**
-     *
-     * 删除某个用户的所有会话，(赶脚不必发送通知)
-     * @param localGuid 用户id
-     * @param reason 移除会话的原因
-     */
-    public void removeUserSession(long localGuid, String reason) {
-        UserInfo userInfo = userInfoMap.remove(localGuid);
-        if (null == userInfo) {
-            return;
-        }
-        removeUserSession(userInfo, reason);
-    }
-
-    /**
-     * 删除某个用户的所有会话，(赶脚不必发送通知)
-     * @param userInfo 用户信息
-     * @param reason 移除会话的原因
-     */
-    private void removeUserSession(UserInfo userInfo, String reason) {
-        FastCollectionsUtils.removeIfAndThen(userInfo.sessionWrapperMap,
-                (k, sessionWrapper) -> true,
-                (k, sessionWrapper) -> afterRemoved(sessionWrapper, reason));
-    }
 
     // ------------------------------------------------状态机------------------------------------------------
 
@@ -861,7 +868,7 @@ public class C2SSessionManager {
                ConcurrentUtils.tryCommit(sessionWrapper.getNetContext().localEventLoop(), () -> {
                    try {
                        sessionWrapper.messageHandler.onRpcRequest(session, requestTO.getRequest(),
-                               new C2SRpcResponseChannel(requestTO.isSync(), requestTO.getRequestGuid(), session));
+                               new StandardRpcResponseChannel(session, requestTO.isSync(), requestTO.getRequestGuid()));
                    } catch (Exception e){
                        ConcurrentUtils.rethrow(e);
                    }
@@ -937,6 +944,7 @@ public class C2SSessionManager {
         @Override
         protected void addToNeedSendQueue(UnsentMessage unsentMessage) {
             super.addToNeedSendQueue(unsentMessage);
+            // 缓存消息数超过阈值，立即尝试发送
             if (getMessageQueue().getNeedSendQueue().size() >= netConfigManager.flushThreshold()) {
                 flushAllUnsentMessage();
             }

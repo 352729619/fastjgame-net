@@ -68,7 +68,7 @@ import java.util.function.Consumer;
  * date - 2019/4/27 22:14
  * github - https://github.com/hl845740757
  */
-public class S2CSessionManager {
+public class S2CSessionManager implements SessionManager {
 
     private static final Logger logger = LoggerFactory.getLogger(S2CSessionManager.class);
 
@@ -163,6 +163,7 @@ public class S2CSessionManager {
      * @param clientGuid to
      * @param message 消息内容
      */
+    @Override
     public void send(long localGuid, long clientGuid, @Nonnull Object message){
         ifSessionOk(localGuid, clientGuid, sessionWrapper -> {
             OneWayMessage oneWayMessage = new OneWayMessage(sessionWrapper.nextSequence(), message);
@@ -179,7 +180,8 @@ public class S2CSessionManager {
      * @param requestGuid 请求对应的编号
      * @param response 响应结果
      */
-    public void sendRpcResponse(long localGuid, long clientGuid, boolean sync, long requestGuid, RpcResponse response) {
+    @Override
+    public void sendRpcResponse(long localGuid, long clientGuid, boolean sync, long requestGuid, @Nonnull RpcResponse response) {
         ifSessionOk(localGuid, clientGuid, sessionWrapper -> {
             RpcResponseMessage responseMessage = new RpcResponseMessage(sessionWrapper.nextSequence(), requestGuid, response);
             sessionWrapper.writeAndFlush(responseMessage);
@@ -195,6 +197,7 @@ public class S2CSessionManager {
      * @param request rpc请求内容
      * @param responsePromise 用于监听结果
      */
+    @Override
     public void rpc(long localGuid, long clientGuid, @Nonnull Object request, long timeoutMs, boolean sync, Promise<RpcResponse> responsePromise){
         SessionWrapper sessionWrapper = getSessionWrapper(localGuid, clientGuid);
         if (null== sessionWrapper){
@@ -220,12 +223,18 @@ public class S2CSessionManager {
      * @param clientGuid remoteGuid
      * @param reason 要是可扩展的，好像只有字符串最合适
      */
-    public void removeSession(long localGuid, long clientGuid, String reason){
-        SessionWrapper sessionWrapper = getSessionWrapper(localGuid, clientGuid);
+    @Override
+    public boolean removeSession(long localGuid, long clientGuid, String reason){
+        UserInfo userInfo = userInfoMap.get(localGuid);
+        if (null == userInfo) {
+            return true;
+        }
+        SessionWrapper sessionWrapper = userInfo.sessionWrapperMap.remove(clientGuid);
         if (null == sessionWrapper){
-            return;
+            return true;
         }
         afterRemoved(sessionWrapper, reason);
+        return true;
     }
 
     /**
@@ -248,6 +257,42 @@ public class S2CSessionManager {
             sessionWrapper.getLifecycleAware().onSessionDisconnected(session);
         });
     }
+
+    /**
+     * 删除某个用户的所有会话，(赶脚不必发送通知)
+     * @param localGuid 用户id
+     * @param reason 移除会话的原因
+     */
+    @Override
+    public void removeUserSession(long localGuid, String reason) {
+        UserInfo userInfo = userInfoMap.remove(localGuid);
+        if (null == userInfo) {
+            return;
+        }
+        removeUserSession(userInfo, reason);
+    }
+
+    /**
+     * 删除某个用户的所有会话，(赶脚不必发送通知)
+     * @param userInfo 用户信息
+     * @param reason 移除会话的原因
+     */
+    private void removeUserSession(UserInfo userInfo, String reason) {
+        FastCollectionsUtils.removeIfAndThen(userInfo.sessionWrapperMap,
+                (k, sessionWrapper) -> true,
+                (k, sessionWrapper) -> afterRemoved(sessionWrapper, reason));
+    }
+
+    /**
+     * 当用户所在的EventLoop终止了
+     */
+    @Override
+    public void onUserEventLoopTerminal(EventLoop userEventLoop) {
+        FastCollectionsUtils.removeIfAndThen(userInfoMap,
+                (k, userInfo) -> userInfo.netContext.localEventLoop() == userEventLoop,
+                (k, userInfo) -> removeUserSession(userInfo, "onUserEventLoopTerminal"));
+    }
+    // ------------------------------------------------- 网络事件处理 ---------------------------------------
 
     /**
      * 收到客户端的链接请求(请求验证token)
@@ -575,8 +620,8 @@ public class S2CSessionManager {
         final RpcRequestMessageTO requestMessageTO = rpcRequestEventParam.messageTO();
         tryUpdateMessageQueue(eventChannel, rpcRequestEventParam, sessionWrapper -> {
             UserInfo userInfo = sessionWrapper.userInfo;
-            S2CRpcResponseChannel rpcResponseChannel = new S2CRpcResponseChannel(requestMessageTO.isSync(),
-                    requestMessageTO.getRequestGuid(), sessionWrapper.session);
+            StandardRpcResponseChannel rpcResponseChannel = new StandardRpcResponseChannel(sessionWrapper.session,
+                    requestMessageTO.isSync(), requestMessageTO.getRequestGuid());
             ConcurrentUtils.tryCommit(userInfo.netContext.localEventLoop(), () -> {
                 try {
                     userInfo.messageHandler.onRpcRequest(sessionWrapper.session, requestMessageTO.getRequest(),
@@ -623,40 +668,6 @@ public class S2CSessionManager {
                 }
             });
         });
-    }
-
-    /**
-     * 当用户所在的EventLoop终止了
-     */
-    public void onUserEventLoopTerminal(EventLoop userEventLoop) {
-        FastCollectionsUtils.removeIfAndThen(userInfoMap,
-                (k, userInfo) -> userInfo.netContext.localEventLoop() == userEventLoop,
-                (k, userInfo) -> removeUserSession(userInfo, "onUserEventLoopTerminal"));
-    }
-
-    /**
-     *
-     * 删除某个用户的所有会话，(赶脚不必发送通知)
-     * @param localGuid 用户id
-     * @param reason 移除会话的原因
-     */
-    public void removeUserSession(long localGuid, String reason) {
-        UserInfo userInfo = userInfoMap.remove(localGuid);
-        if (null == userInfo) {
-            return;
-        }
-        removeUserSession(userInfo, reason);
-    }
-
-    /**
-     * 删除某个用户的所有会话，(赶脚不必发送通知)
-     * @param userInfo 用户信息
-     * @param reason 移除会话的原因
-     */
-    private void removeUserSession(UserInfo userInfo, String reason) {
-        FastCollectionsUtils.removeIfAndThen(userInfo.sessionWrapperMap,
-                (k, sessionWrapper) -> true,
-                (k, sessionWrapper) -> afterRemoved(sessionWrapper, reason));
     }
 
     // -------------------------------------------------- 内部封装 -------------------------------------------

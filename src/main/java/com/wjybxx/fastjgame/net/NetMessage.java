@@ -19,7 +19,9 @@ package com.wjybxx.fastjgame.net;
 import javax.annotation.concurrent.NotThreadSafe;
 
 /**
- * 逻辑线程待发送的消息对象，它是非线程安全的。
+ * 它是网络层已发送但是对方还未确认收到的消息包，它是非线程安全的（因为它不能有可写的ack）。
+ * 它由网络层构建，网络层使用，且不会共享，因此字段不必是final(final有一定消耗)。
+ *
  * 一个包的{@link #sequence}不会改变，但是ack会在每次发送的时候改变。
  *
  * 2019年7月30日进行了重命名，避免和protoBuf的message搞混淆。
@@ -34,7 +36,7 @@ public abstract class NetMessage {
     /**
      * 当前包id。一个网络包一旦被构建，则不再改变！
      */
-    protected final long sequence;
+    protected long sequence;
     /**
      * 消息确认超时时间
      * 发送的时候设置超时时间

@@ -83,7 +83,7 @@ class NetContextImp implements NetContext {
 
 	@Override
 	public ListenableFuture<?> unregister() {
-		return netEventLoop.removeUser(localGuid);
+		return netEventLoop.deregisterContext(localGuid);
 	}
 
 	void afterRemoved() {
@@ -101,6 +101,7 @@ class NetContextImp implements NetContext {
 						initializerSupplier, lifecycleAware, messageHandler);
 			} catch (BindException e){
 				ConcurrentUtils.rethrow(e);
+				// unreachable
 				return null;
 			}
 		});
@@ -124,6 +125,7 @@ class NetContextImp implements NetContext {
 						initializerSupplier, httpRequestHandler);
 			} catch (Exception e){
 				ConcurrentUtils.rethrow(e);
+				// unreachable
 				return null;
 			}
 		});

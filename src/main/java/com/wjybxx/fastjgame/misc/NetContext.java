@@ -16,7 +16,6 @@
 
 package com.wjybxx.fastjgame.misc;
 
-import com.wjybxx.fastjgame.annotation.UnstableApi;
 import com.wjybxx.fastjgame.concurrent.EventLoop;
 import com.wjybxx.fastjgame.concurrent.ListenableFuture;
 import com.wjybxx.fastjgame.eventloop.NetEventLoop;
@@ -62,10 +61,9 @@ public interface NetContext {
 	NetEventLoop netEventLoop();
 
 	/**
-	 * 暂时做个弊，不然测试不好做
-	 * TODO 优化initializer问题
+	 * 获取网络事件管理器组件。
+	 * 创建{@link ChannelInitializerSupplier}需要使用。
 	 */
-	@UnstableApi
 	NetEventManager netEventManager();
 
 	/**

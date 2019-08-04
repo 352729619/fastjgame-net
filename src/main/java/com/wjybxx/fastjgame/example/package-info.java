@@ -21,4 +21,4 @@
  * date - 2019/8/4
  * github - https://github.com/hl845740757
  */
-package com.wjybxx.fastjgame.protobuffer;
+package com.wjybxx.fastjgame.example;

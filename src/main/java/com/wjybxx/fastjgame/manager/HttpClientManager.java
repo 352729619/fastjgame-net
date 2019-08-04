@@ -74,7 +74,7 @@ public class HttpClientManager extends AbstractThreadLifeCycleHelper {
      * 同步get请求
      */
     public Response syncGet(String url, Map<String,String> params) throws IOException {
-        Request request=new Request.Builder().get().url(buildGetUrl(url, params)).build();
+        Request request = new Request.Builder().get().url(buildGetUrl(url, params)).build();
         return okHttpClient.newCall(request).execute();
     }
 
@@ -86,7 +86,7 @@ public class HttpClientManager extends AbstractThreadLifeCycleHelper {
      * @param okHttpCallback 回调
      */
     public void asyncGet(String url, Map<String,String> params, EventLoop eventLoop, OkHttpCallback okHttpCallback){
-        Request request=new Request.Builder().get().url(buildGetUrl(url, params)).build();
+        Request request = new Request.Builder().get().url(buildGetUrl(url, params)).build();
         okHttpClient.newCall(request).enqueue(new DelegateEventCallBack(eventLoop, okHttpCallback));
     }
 
@@ -94,7 +94,7 @@ public class HttpClientManager extends AbstractThreadLifeCycleHelper {
      * 同步post请求
      */
     public Response syncPost(String url, Map<String,String> params) throws IOException {
-        Request request=new Request.Builder().post(buildPostBody(params)).build();
+        Request request = new Request.Builder().url(checkUrl(url)).post(buildPostBody(params)).build();
         return okHttpClient.newCall(request).execute();
     }
 
@@ -106,7 +106,7 @@ public class HttpClientManager extends AbstractThreadLifeCycleHelper {
      * @param okHttpCallback 回调
      */
     public void asyncPost(String url, Map<String,String> params, EventLoop eventLoop, OkHttpCallback okHttpCallback){
-        Request request=new Request.Builder().post(buildPostBody(params)).build();
+        Request request = new Request.Builder().url(checkUrl(url)).post(buildPostBody(params)).build();
         okHttpClient.newCall(request).enqueue(new DelegateEventCallBack(eventLoop, okHttpCallback));
     }
 
@@ -117,15 +117,10 @@ public class HttpClientManager extends AbstractThreadLifeCycleHelper {
      * @return full request
      */
     private String buildGetUrl(String url,Map<String,String> params){
-        String safeUrl;
-        if (url.charAt(url.length()-1) == '?'){
-            safeUrl = url;
-        }else {
-            safeUrl = url + "?";
-        }
+        String safeUrl = checkUrl(url);
         StringBuilder builder = new StringBuilder(safeUrl);
         // 是否添加&符号
-        boolean appendAnd=false;
+        boolean appendAnd = false;
         for (Map.Entry<String,String> entry:params.entrySet()){
             if (appendAnd){
                 builder.append("&");
@@ -134,6 +129,27 @@ public class HttpClientManager extends AbstractThreadLifeCycleHelper {
             appendAnd=true;
         }
         return builder.toString();
+    }
+
+    /**
+     * 检查url格式，默认http协议
+     * @param url 待检查的url
+     * @return 正确的url格式
+     */
+    private String checkUrl(final String url) {
+        String safeUrl;
+        if (url.startsWith("http://") || url.startsWith("https://")) {
+            safeUrl = url;
+        } else {
+            safeUrl = "http://" + url;
+        }
+
+        if (safeUrl.charAt(safeUrl.length()-1) == '?'){
+            safeUrl = safeUrl;
+        }else {
+            safeUrl = safeUrl + "?";
+        }
+        return safeUrl;
     }
 
     /**

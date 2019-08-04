@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.wjybxx.fastjgame.test;
+package com.wjybxx.fastjgame.example;
 
 import com.google.protobuf.AbstractMessage;
 import com.wjybxx.fastjgame.net.MessageMappingStrategy;

@@ -16,7 +16,6 @@
 
 package com.wjybxx.fastjgame.net.codec;
 
-import com.wjybxx.fastjgame.constants.NetConstants;
 import com.wjybxx.fastjgame.manager.NetEventManager;
 import com.wjybxx.fastjgame.net.*;
 import io.netty.buffer.ByteBuf;
@@ -39,7 +38,7 @@ public class ServerCodec extends BaseCodec {
     /** 该channel关联哪一个logicWorld */
     private final long localGuid;
     /** 缓存的客户端guid，关联的远程 */
-    private long clientGuid = NetConstants.INVALID_SESSION_ID;
+    private long clientGuid = Long.MIN_VALUE;
 
     private final NetEventManager netEventManager;
 
@@ -54,7 +53,7 @@ public class ServerCodec extends BaseCodec {
      * @return 是否已接收到建立连接请求
      */
     private boolean isInited(){
-        return clientGuid != NetConstants.INVALID_SESSION_ID;
+        return clientGuid != Long.MIN_VALUE;
     }
 
     /**

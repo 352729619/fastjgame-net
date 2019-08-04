@@ -16,14 +16,15 @@
 
 package com.wjybxx.fastjgame.net;
 
-import com.wjybxx.fastjgame.concurrent.Promise;
+import com.wjybxx.fastjgame.concurrent.ListenableFuture;
+import com.wjybxx.fastjgame.manager.SessionManager;
+import com.wjybxx.fastjgame.manager.NetConfigManager;
 import com.wjybxx.fastjgame.manager.NetManagerWrapper;
 import com.wjybxx.fastjgame.misc.HostAndPort;
 import com.wjybxx.fastjgame.misc.NetContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -34,7 +35,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * date - 2019/4/27 10:00
  * github - https://github.com/hl845740757
  */
-public class C2SSession implements IC2SSession {
+public class C2SSession extends AbstractSession implements IC2SSession {
 
     private static final Logger logger = LoggerFactory.getLogger(C2SSession.class);
 
@@ -75,13 +76,18 @@ public class C2SSession implements IC2SSession {
     }
 
     @Override
-    public long localGuid() {
-        return netContext.localGuid();
+    public NetContext netContext() {
+        return netContext;
     }
 
     @Override
-    public RoleType localRole() {
-        return netContext.localRole();
+    protected NetConfigManager getNetConfigManager() {
+        return netManagerWrapper.getNetConfigManager();
+    }
+
+    @Override
+    protected SessionManager getSessionManager() {
+        return netManagerWrapper.getC2SSessionManager();
     }
 
     @Override
@@ -135,89 +141,21 @@ public class C2SSession implements IC2SSession {
                 '}';
     }
 
-
-    // --------------------------------------------- 消息发送实现 ----------------------------------------
-    // 以下并未严格处理已关闭的情况，因为即使它进入了下一步，未来也会失败。
-
-    @Override
-    public void sendMessage(Object message) {
-        if (!isActive()) {
-            logger.info("session is already closed, send message failed.");
-            return;
-        }
-        netContext.netEventLoop().execute(() -> {
-            netManagerWrapper.getC2SSessionManager().send(localGuid(), remoteGuid(), message);
-        });
-    }
-
-    @Override
-    public RpcFuture rpc(Object request) {
-        return rpc(request, netManagerWrapper.getNetConfigManager().rpcCallbackTimeoutMs());
-    }
-
-    @Override
-    public RpcFuture rpc(Object request, long timeoutMs) {
-        // 会话已关闭，立即返回结果，在上面的监听会立即返回。
-        if (!isActive()) {
-            return netContext.netEventLoop().newCompletedFuture(netContext.localEventLoop(), RpcResponse.SESSION_CLOSED);
-        }
-        // 提交执行
-        final RpcPromise rpcPromise = netContext.netEventLoop().newRpcPromise(netContext.localEventLoop());
-        netContext.netEventLoop().execute(() -> {
-            netManagerWrapper.getC2SSessionManager().rpc(localGuid(), remoteGuid(), request, timeoutMs, false, rpcPromise);
-        });
-        // 返回给调用者
-        return rpcPromise;
-    }
-
-    @Override
-    public RpcResponse syncRpc(Object request) {
-        return syncRpc(request, netManagerWrapper.getNetConfigManager().syncRpcTimeoutMs());
-    }
-
-    @Override
-    public RpcResponse syncRpc(Object request, long timeoutMs) {
-        // 会话已关闭，立即返回结果
-        if (!isActive()) {
-            return RpcResponse.SESSION_CLOSED;
-        }
-
-        final Promise<RpcResponse> rpcResponsePromise = netContext.netEventLoop().newPromise();
-        // 提交执行
-        netContext.netEventLoop().execute(() -> {
-            netManagerWrapper.getC2SSessionManager().rpc(localGuid(), remoteGuid(), request, timeoutMs, true, rpcResponsePromise);
-        });
-        // 限时等待
-        rpcResponsePromise.awaitUninterruptibly(timeoutMs, TimeUnit.MILLISECONDS);
-        // 不论是否真的执行完成了，我们尝试让它变成完成状态，如果它已经进入完成状态，则不会产生任何影响。 不要想着先检查后执行这样的逻辑。
-        rpcResponsePromise.trySuccess(RpcResponse.TIMEOUT);
-        // 一定有结果
-        return rpcResponsePromise.tryGet();
-    }
-
-    void sendRpcResponse(boolean sync, long requestGuid, RpcResponse rpcResponse) {
-        if (!isActive()) {
-            logger.info("session is already closed, send rpcResponse failed.");
-            return;
-        }
-        netContext.netEventLoop().execute(() -> {
-            netManagerWrapper.getC2SSessionManager().sendRpcResponse(localGuid(), remoteGuid(), sync, requestGuid, rpcResponse);
-        });
-    }
-
     @Override
     public boolean isActive() {
         return stateHolder.get() == ST_ACTIVE;
     }
 
     @Override
-    public void close() {
+    public ListenableFuture<?> close() {
         // 先切换状态
         if (stateHolder.compareAndSet(ST_INACTIVE, ST_CLOSED) || stateHolder.compareAndSet(ST_ACTIVE, ST_CLOSED)) {
-            netContext.netEventLoop().execute(() -> {
+            return netContext.netEventLoop().submit(() -> {
                 netManagerWrapper.getC2SSessionManager().removeSession(localGuid(), remoteGuid(), "close method");
             });
+        } else {
+            // else 早已经关闭
+            return netContext.localEventLoop().newSucceededFuture(null);
         }
-        // else 早已经关闭
     }
 }

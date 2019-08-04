@@ -179,7 +179,9 @@ public class NetEventLoopImp extends SingleThreadEventLoop implements NetEventLo
 		ConcurrentUtils.safeExecute((Runnable) httpClientManager::shutdown);
 	}
 
-	ListenableFuture<?> removeUser(long localGuid) {
+	@Nonnull
+	@Override
+	public ListenableFuture<?> deregisterContext(long localGuid) {
 		return submit(() -> {
 			NetContextImp netContext = registeredUserMap.remove(localGuid);
 			if (null == netContext) {

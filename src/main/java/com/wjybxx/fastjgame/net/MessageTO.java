@@ -19,12 +19,15 @@ package com.wjybxx.fastjgame.net;
 import jdk.nashorn.internal.ir.annotations.Immutable;
 
 /**
- * 消息传输对象，将要发送的数据安全的传输到IO线程。
- * 通信采用捎带确认机制：一个消息包必须有ack和sequence字段。
- * 注意：一个包的{@link #sequence}不会改变，但是ack会在每次发送的时候改变。
+ * 消息传输对象，将要发送的数据安全的传输到IO线程 (网络层线程 -> netty线程)。
+ * 子类全部实现为线程不可变对象，有助于保证线程安全性。
+ * (虽然不必如此，因此该对象是安全发布到netty线程，并且不会重复使用，
+ * 但是实现为不可变对象意图更明确，避免有人想着重用该对象)
  *
- * 不可以直接使用Message，会导致线程安全问题，
- * 子类实现也必须是不可变对象，保证线程安全。
+ * 通信采用捎带确认机制：一个消息包必须有ack和sequence字段。
+ * 注意：一个包的{@link #sequence}不会改变，但是ack会在每次发送的时候改变，因此
+ * {@link MessageTO}是不可重用的，每次都会新创建。
+ *
  * @author wjybxx
  * @version 1.0
  * date - 2019/4/27 9:26

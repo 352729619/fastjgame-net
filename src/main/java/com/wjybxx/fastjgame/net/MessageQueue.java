@@ -22,7 +22,9 @@ import java.util.LinkedList;
 
 /**
  * 消息队列，可与tcp的收发缓冲区比较
- * 消息视图大致如下：
+ * （知识点：滑动窗口，捎带确认）
+ *
+ * 消息队列的视图大致如下：
  *
  *              ↓nextSequence
  * |---------------------------
@@ -84,7 +86,6 @@ public final class MessageQueue {
 
     /**
      * 获取下一个可能的最大ackGuid，
-     * @return
      */
     private long getAckUpperBound(){
         // 有已发送待确认的消息，那么它的最后一个就是ack上界
@@ -98,7 +99,7 @@ public final class MessageQueue {
 
     /**
      * 根据对方发送的ack更新已发送队列
-     * @param ack
+     * @param ack 对方发来的ack
      */
     public void updateSentQueue(long ack){
         if (!isAckOK(ack)){

@@ -26,7 +26,7 @@ package com.wjybxx.fastjgame.net;
 public class UnsentOneWayMessage implements UnsentMessage{
 
 	/** 单向消息的结构体，具体怎么解析，不做限制 */
-	private final Object message;
+	private Object message;
 
 	public UnsentOneWayMessage(Object message) {
 		this.message = message;

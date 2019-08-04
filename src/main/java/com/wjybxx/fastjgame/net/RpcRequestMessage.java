@@ -26,15 +26,14 @@ import javax.annotation.concurrent.NotThreadSafe;
  * date - 2019/7/31
  * github - https://github.com/hl845740757
  */
-@NotThreadSafe
 public class RpcRequestMessage extends NetMessage{
 
 	/** 是否是同步rpc调用，是否加急 */
-	private final boolean sync;
+	private boolean sync;
 	/** rpc请求编号，用于返回消息 */
-	private final long requestGuid;
+	private long requestGuid;
 	/** rpc请求内容 */
-	private final Object request;
+	private Object request;
 
 	public RpcRequestMessage(long sequence, boolean sync, long requestGuid, Object request) {
 		super(sequence);

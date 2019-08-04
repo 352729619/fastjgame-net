@@ -25,9 +25,9 @@ package com.wjybxx.fastjgame.net;
  */
 public class UnsentRpcResponse implements UnsentMessage{
 
-	private final long requestGuid;
+	private long requestGuid;
 	/** rpc响应结果，网络层不对其做限制 */
-	private final RpcResponse rpcResponse;
+	private RpcResponse rpcResponse;
 
 	public UnsentRpcResponse(long requestGuid, RpcResponse rpcResponse) {
 		this.requestGuid = requestGuid;

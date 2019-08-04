@@ -70,4 +70,11 @@ public final class RpcResponse {
 		return new RpcResponse(resultCode, null);
 	}
 
+	@Override
+	public String toString() {
+		return "RpcResponse{" +
+				"resultCode=" + resultCode +
+				", body=" + body +
+				'}';
+	}
 }

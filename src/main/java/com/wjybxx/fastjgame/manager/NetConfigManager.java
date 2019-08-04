@@ -18,7 +18,6 @@ package com.wjybxx.fastjgame.manager;
 
 import com.google.inject.Inject;
 import com.wjybxx.fastjgame.configwrapper.ConfigWrapper;
-import com.wjybxx.fastjgame.constants.NetConstants;
 import com.wjybxx.fastjgame.utils.ConfigLoader;
 import com.wjybxx.fastjgame.utils.NetUtils;
 
@@ -35,6 +34,11 @@ import java.nio.charset.StandardCharsets;
  */
 @ThreadSafe
 public class NetConfigManager  {
+
+    /**
+     * 网络包配置文件名字
+     */
+    private static final String NET_CONFIG_NAME = "net_config.properties";
 
     private final ConfigWrapper configWrapper;
 
@@ -84,7 +88,7 @@ public class NetConfigManager  {
 
     @Inject
     public NetConfigManager() throws IOException {
-        configWrapper = ConfigLoader.loadConfig(NetConfigManager.class.getClassLoader(), NetConstants.NET_CONFIG_NAME);
+        configWrapper = ConfigLoader.loadConfig(NetConfigManager.class.getClassLoader(), NET_CONFIG_NAME);
         localIp = configWrapper.getAsString("localIp", NetUtils.getLocalIp());
         outerIp = configWrapper.getAsString("outerIp", NetUtils.getOuterIp());
 

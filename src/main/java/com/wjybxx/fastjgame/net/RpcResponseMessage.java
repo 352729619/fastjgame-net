@@ -19,7 +19,7 @@ package com.wjybxx.fastjgame.net;
 import javax.annotation.concurrent.NotThreadSafe;
 
 /**
- * RPC响应消息
+ * 已发送RPC结果
  *
  * @author wjybxx
  * @version 1.0
@@ -30,9 +30,9 @@ import javax.annotation.concurrent.NotThreadSafe;
 public class RpcResponseMessage extends NetMessage {
 
 	/** 客户端的哪一个请求 */
-	private final long requestGuid;
+	private long requestGuid;
 	/** rpc响应结果 */
-	private final RpcResponse rpcResponse;
+	private RpcResponse rpcResponse;
 
 	public RpcResponseMessage(long sequence, long requestGuid, RpcResponse rpcResponse) {
 		super(sequence);

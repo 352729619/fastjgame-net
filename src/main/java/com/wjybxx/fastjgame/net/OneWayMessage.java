@@ -33,7 +33,7 @@ public class OneWayMessage extends NetMessage{
 	 * 消息内容，必须是不可变对象。
 	 * 不要求是protoBuf形式
 	 */
-	private final Object message;
+	private Object message;
 
 	public OneWayMessage(long sequence, Object message) {
 		super(sequence);

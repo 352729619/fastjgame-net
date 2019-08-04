@@ -17,6 +17,7 @@
 package com.wjybxx.fastjgame.eventloop;
 
 import com.wjybxx.fastjgame.concurrent.EventLoop;
+import com.wjybxx.fastjgame.concurrent.ListenableFuture;
 import com.wjybxx.fastjgame.net.RpcFuture;
 import com.wjybxx.fastjgame.net.RpcPromise;
 import com.wjybxx.fastjgame.net.RpcResponse;
@@ -58,4 +59,12 @@ public interface NetEventLoop extends NetEventLoopGroup, EventLoop {
 	 */
 	@Nonnull
 	RpcFuture newCompletedFuture(@Nonnull EventLoop userEventLoop, @Nonnull RpcResponse rpcResponse);
+
+	/**
+	 * 取消context的注册
+	 * @param localGuid 注册的用户
+	 * @return future
+	 */
+	@Nonnull
+	ListenableFuture<?> deregisterContext(long localGuid);
 }
