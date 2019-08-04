@@ -91,7 +91,7 @@ public final class HttpSession implements IHttpSession{
     @Override
     public void close() {
         netContext.netEventLoop().submit(() -> {
-            httpSessionManager.closeSession(channel, this);
+            httpSessionManager.removeSession(this, channel);
         });
     }
 }

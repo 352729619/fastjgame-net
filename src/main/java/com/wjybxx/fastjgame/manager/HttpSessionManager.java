@@ -35,6 +35,7 @@ import com.wjybxx.fastjgame.utils.FastCollectionsUtils;
 import com.wjybxx.fastjgame.utils.NetUtils;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelInitializer;
+import io.netty.channel.socket.SocketChannel;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 
@@ -85,13 +86,13 @@ public class HttpSessionManager {
 	 * @see AcceptManager#bindRange(boolean, PortRange, ChannelInitializer)
 	 */
 	public HostAndPort bindRange(NetContext netContext, boolean outer, PortRange portRange,
-								 ChannelInitializerSupplier initializerSupplier,
+								 ChannelInitializer<SocketChannel> initializer,
 								 HttpRequestHandler httpRequestHandler) throws BindException {
 		assert netEventLoopManager.inEventLoop();
 		// 绑定端口
-		HostAndPort localAddress = acceptManager.bindRange(outer, portRange, initializerSupplier.get());
+		HostAndPort localAddress = acceptManager.bindRange(outer, portRange, initializer);
 		// 保存用户信息
-		userInfoMap.computeIfAbsent(netContext.localGuid(), localGuid -> new UserInfo(netContext, localAddress, initializerSupplier, httpRequestHandler));
+		userInfoMap.computeIfAbsent(netContext.localGuid(), localGuid -> new UserInfo(netContext, localAddress, initializer, httpRequestHandler));
 
 		return localAddress;
 	}
@@ -174,7 +175,7 @@ public class HttpSessionManager {
 	/**
 	 * 关闭session，非当前线程调用。
 	 */
-	public void closeSession(Channel channel, HttpSession httpSession) {
+	public void removeSession(HttpSession httpSession, Channel channel) {
 		UserInfo userInfo = userInfoMap.get(httpSession.localGuid());
 		// userInfo是可能不存在的，因为是异步调用
 		if (userInfo != null) {
@@ -183,24 +184,24 @@ public class HttpSessionManager {
 		}
 	}
 
-	/**
+    /**
 	 * http客户端使用者信息
 	 */
 	private static class UserInfo {
 
 		private final NetContext netContext;
 		private final HostAndPort localAddress;
-		private final ChannelInitializerSupplier initializerSupplier;
+		private final ChannelInitializer<SocketChannel>  initializer;
 		private final HttpRequestHandler httpRequestHandler;
 
 		/** 该用户关联的所有的会话 */
 		private final Map<Channel, SessionWrapper> sessionWrapperMap = new IdentityHashMap<>();
 
 		private UserInfo(NetContext netContext, HostAndPort localAddress,
-						 ChannelInitializerSupplier initializerSupplier, HttpRequestHandler httpRequestHandler) {
+						 ChannelInitializer<SocketChannel> initializer, HttpRequestHandler httpRequestHandler) {
 			this.netContext = netContext;
 			this.localAddress = localAddress;
-			this.initializerSupplier = initializerSupplier;
+			this.initializer = initializer;
 			this.httpRequestHandler = httpRequestHandler;
 		}
 	}

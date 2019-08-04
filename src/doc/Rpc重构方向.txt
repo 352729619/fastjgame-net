@@ -9,7 +9,7 @@ Message onRequest(long remoteGuid, RoleType roleType, Message msg) {
 // 2. void ---- 可能无法直接返回结果的类型，需要持有一个channel，可以在未来返回
 // onRequest(remoteGuid, msg, rpcChannel);
 
-void onRequest(long remoteGuid, RoleType roleType, Message msg, RpcChannel rpcChannel) {
+void onRequest(long remoteGuid, RoleType roleType, Message msg, RpcResponseChannel rpcChannel) {
     rpcChannel.write(result);
 }
 

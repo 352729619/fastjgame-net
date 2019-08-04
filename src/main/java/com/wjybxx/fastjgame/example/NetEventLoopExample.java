@@ -46,14 +46,16 @@ import java.util.HashMap;
  * date - 2019/8/4
  * github - https://github.com/hl845740757
  */
-public class NetEventLoopTest {
+public class NetEventLoopExample {
 
     public static void main(String[] args) {
         final CodecHelper codecHelper = CodecHelper.newInstance(new HashMappingStrategy(p_common.class,
                         p_center_scene.class),
                 new ProtoBufMessageSerializer());
 
-        NetEventLoopGroup netGroup = new NetEventLoopGroupImp(1, new DefaultThreadFactory("NET-EVENT-LOOP"));
+        // 线程数可以动态调整
+        int threadNum = 2;
+        NetEventLoopGroup netGroup = new NetEventLoopGroupImp(threadNum, new DefaultThreadFactory("NET-EVENT-LOOP"));
         EventLoop userEventLoop1 = new DefaultEventLoop(null, new DefaultThreadFactory("SERVER"));
         EventLoop userEventLoop2 = new DefaultEventLoop(null, new DefaultThreadFactory("CLIENT"));
 
@@ -96,7 +98,7 @@ public class NetEventLoopTest {
     private static ListenableFuture<HostAndPort> startTcpServer(CodecHelper codecHelper, NetContext context1) {
         TCPServerChannelInitializer tcpServerChannelInitializer = new TCPServerChannelInitializer(context1.localGuid(), 8192, codecHelper,
                 context1.netEventManager());
-        ListenableFuture<HostAndPort> bindFuture = context1.bindRange(false, new PortRange(10000, 10050), () -> tcpServerChannelInitializer,
+        ListenableFuture<HostAndPort> bindFuture = context1.bindRange(false, new PortRange(10000, 10050), tcpServerChannelInitializer,
                 new SeverLifeAware(), new ServerMessageHandler());
         bindFuture.awaitUninterruptibly();
         return bindFuture;
@@ -137,8 +139,7 @@ public class NetEventLoopTest {
 
     private static void startHttpService(NetContext context2) {
         HttpServerInitializer httpServerInitializer = new HttpServerInitializer(context2.localGuid(), context2.netEventManager());
-        ListenableFuture<HostAndPort> httpPortFuture = context2.bindRange(true, new PortRange(20001, 200050),
-                () -> httpServerInitializer, (httpSession, path, requestParams) -> {
+        ListenableFuture<HostAndPort> httpPortFuture = context2.bindRange(true, new PortRange(20001, 200050), httpServerInitializer, (httpSession, path, requestParams) -> {
             System.out.println("onHttpRequest, path = " + path + ", param = " + requestParams.toString());
             httpSession.writeAndFlush(HttpResponseHelper.newJsonResponse("Hello World"));
         });

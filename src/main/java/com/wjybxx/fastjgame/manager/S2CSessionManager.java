@@ -21,8 +21,6 @@ import com.wjybxx.fastjgame.concurrent.EventLoop;
 import com.wjybxx.fastjgame.concurrent.Promise;
 import com.wjybxx.fastjgame.misc.*;
 import com.wjybxx.fastjgame.net.*;
-import com.wjybxx.fastjgame.net.initializer.ChannelInitializerFactory;
-import com.wjybxx.fastjgame.net.initializer.ChannelInitializerSupplier;
 import com.wjybxx.fastjgame.trigger.Timer;
 import com.wjybxx.fastjgame.utils.ConcurrentUtils;
 import com.wjybxx.fastjgame.utils.FastCollectionsUtils;
@@ -31,6 +29,7 @@ import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelInitializer;
+import io.netty.channel.socket.SocketChannel;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import org.slf4j.Logger;
@@ -100,6 +99,17 @@ public class S2CSessionManager implements SessionManager {
         this.managerWrapper = managerWrapper;
     }
 
+    public void tick() {
+        for (UserInfo userInfo:userInfoMap.values()) {
+            for (SessionWrapper sessionWrapper: userInfo.sessionWrapperMap.values()){
+                // 检测超时的rpc调用
+                FastCollectionsUtils.removeIfAndThen(sessionWrapper.getRpcPromiseMap(),
+                        (long k, RpcPromiseInfo rpcPromiseInfo) -> netTimeManager.getSystemMillTime() >= rpcPromiseInfo.timeoutMs,
+                        (long k, RpcPromiseInfo rpcPromiseInfo) -> rpcPromiseInfo.rpcPromise.trySuccess(RpcResponse.TIMEOUT));
+            }
+        }
+    }
+
     /**
      * 定时检查会话超时时间
      */
@@ -115,14 +125,14 @@ public class S2CSessionManager implements SessionManager {
      * @see AcceptManager#bindRange(boolean, PortRange, ChannelInitializer)
      */
     public HostAndPort bindRange(NetContext netContext, boolean outer, PortRange portRange,
-                                 ChannelInitializerSupplier initializerSupplier,
+                                 ChannelInitializer<SocketChannel> initializer,
                                  SessionLifecycleAware<S2CSession> lifecycleAware,
                                  MessageHandler messageHandler) throws BindException {
 
-        final HostAndPort localAddress = acceptManager.bindRange(outer, portRange, initializerSupplier.get());
+        final HostAndPort localAddress = acceptManager.bindRange(outer, portRange, initializer);
         // 由于是监听方，因此方法参数是针对该用户的所有客户端的
         userInfoMap.computeIfAbsent(netContext.localGuid(),
-                localGuid -> new UserInfo(netContext, localAddress, initializerSupplier, lifecycleAware, messageHandler));
+                localGuid -> new UserInfo(netContext, localAddress, initializer, lifecycleAware, messageHandler));
         return localAddress;
     }
 
@@ -212,7 +222,7 @@ public class S2CSessionManager implements SessionManager {
             RpcRequestMessage rpcRequestMessage = new RpcRequestMessage(sessionWrapper.getMessageQueue().nextSequence(), sync, sessionWrapper.nextRequestGuid(), request);
             RpcPromiseInfo rpcPromiseInfo = new RpcPromiseInfo(responsePromise, netTimeManager.getSystemMillTime() + timeoutMs);
             // 必须先保存promise，再发送消息，严格的时序保证
-            sessionWrapper.getRpcPromiseInfoMap().put(rpcRequestMessage.getRequestGuid(), rpcPromiseInfo);
+            sessionWrapper.getRpcPromiseMap().put(rpcRequestMessage.getRequestGuid(), rpcPromiseInfo);
             // 注意：这行代码两个控制器不一样，一个是放入了缓存，一个是立即发送
             sessionWrapper.writeAndFlush(rpcRequestMessage);
         }
@@ -248,6 +258,11 @@ public class S2CSessionManager implements SessionManager {
         // 设置为已关闭
         session.setClosed();
 
+        // 取消所有的rpcPromise
+        FastCollectionsUtils.removeIfAndThen(sessionWrapper.rpcPromiseMap,
+                (k, rpcPromiseInfo) -> true,
+                (k, rpcPromiseInfo) -> rpcPromiseInfo.rpcPromise.trySuccess(RpcResponse.SESSION_CLOSED));
+        
         notifyClientExit(sessionWrapper.getChannel(),sessionWrapper);
         logger.info("remove session by reason of {}, session info={}.",reason, session);
 
@@ -640,7 +655,7 @@ public class S2CSessionManager implements SessionManager {
     void onRcvClientRpcResponse(RpcResponseEventParam rpcResponseEventParam) {
         final Channel eventChannel = rpcResponseEventParam.channel();
         tryUpdateMessageQueue(eventChannel, rpcResponseEventParam, sessionWrapper -> {
-            RpcPromiseInfo rpcPromiseInfo = sessionWrapper.getRpcPromiseInfoMap().remove(rpcResponseEventParam.messageTO().getRequestGuid());
+            RpcPromiseInfo rpcPromiseInfo = sessionWrapper.getRpcPromiseMap().remove(rpcResponseEventParam.messageTO().getRequestGuid());
             if (null == rpcPromiseInfo) {
                 // 可能超时了
                 logger.warn("rpc may timeout");
@@ -680,8 +695,8 @@ public class S2CSessionManager implements SessionManager {
 
         /** 会话生命周期handler */
         private final SessionLifecycleAware<S2CSession> lifecycleAware;
-        /** （如果容易用错的话，可以改成{@link ChannelInitializerFactory}） */
-        private final ChannelInitializerSupplier initializerSupplier;
+        /** 如何初始新接入的channel */
+        private final ChannelInitializer<SocketChannel> initializer;
         /** 该端口上的消息处理器 */
         private final MessageHandler messageHandler;
 
@@ -689,13 +704,13 @@ public class S2CSessionManager implements SessionManager {
         private final Long2ObjectMap<SessionWrapper> sessionWrapperMap = new Long2ObjectOpenHashMap<>();
 
         private UserInfo(NetContext netContext, HostAndPort localAddress,
-                         @Nonnull ChannelInitializerSupplier initializerSupplier,
+                         @Nonnull ChannelInitializer<SocketChannel> initializer,
                          @Nonnull SessionLifecycleAware<S2CSession> lifecycleAware,
                          @Nonnull MessageHandler messageHandler) {
             this.netContext = netContext;
             this.localAddress = localAddress;
             this.lifecycleAware = lifecycleAware;
-            this.initializerSupplier = initializerSupplier;
+            this.initializer = initializer;
             this.messageHandler = messageHandler;
         }
     }
@@ -745,7 +760,7 @@ public class S2CSessionManager implements SessionManager {
         /**
          * 当前会话上的rpc请求
          */
-        private final Long2ObjectMap<RpcPromiseInfo> rpcPromiseInfoMap = new Long2ObjectOpenHashMap<>();
+        private final Long2ObjectMap<RpcPromiseInfo> rpcPromiseMap = new Long2ObjectOpenHashMap<>();
 
         SessionWrapper(UserInfo userInfo, S2CSession session) {
             this.userInfo = userInfo;
@@ -835,12 +850,12 @@ public class S2CSessionManager implements SessionManager {
             return userInfo.lifecycleAware;
         }
 
-        ChannelInitializerSupplier getInitializerSupplier() {
-            return userInfo.initializerSupplier;
+        ChannelInitializer<SocketChannel> getInitializer() {
+            return userInfo.initializer;
         }
 
-        Long2ObjectMap<RpcPromiseInfo> getRpcPromiseInfoMap() {
-            return rpcPromiseInfoMap;
+        Long2ObjectMap<RpcPromiseInfo> getRpcPromiseMap() {
+            return rpcPromiseMap;
         }
 
         long nextSequence() {

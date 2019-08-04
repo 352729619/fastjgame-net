@@ -26,6 +26,8 @@ import com.wjybxx.fastjgame.misc.PortRange;
 import com.wjybxx.fastjgame.net.*;
 import com.wjybxx.fastjgame.net.initializer.ChannelInitializerSupplier;
 import com.wjybxx.fastjgame.utils.ConcurrentUtils;
+import io.netty.channel.ChannelInitializer;
+import io.netty.channel.socket.SocketChannel;
 import okhttp3.Response;
 
 import java.io.IOException;
@@ -94,11 +96,11 @@ class NetContextImp implements NetContext {
 	}
 
 	@Override
-	public ListenableFuture<HostAndPort> bindRange(boolean outer, PortRange portRange, ChannelInitializerSupplier initializerSupplier, SessionLifecycleAware<S2CSession> lifecycleAware, MessageHandler messageHandler) {
+	public ListenableFuture<HostAndPort> bindRange(boolean outer, PortRange portRange, ChannelInitializer<SocketChannel> initializer, SessionLifecycleAware<S2CSession> lifecycleAware, MessageHandler messageHandler) {
 		return netEventLoop.submit(() -> {
 			try {
 				return managerWrapper.getS2CSessionManager().bindRange(this, outer, portRange,
-						initializerSupplier, lifecycleAware, messageHandler);
+						initializer, lifecycleAware, messageHandler);
 			} catch (BindException e){
 				ConcurrentUtils.rethrow(e);
 				// unreachable
@@ -118,11 +120,11 @@ class NetContextImp implements NetContext {
 	// ------------------------------------------- http 实现 ----------------------------------------
 
 	@Override
-	public ListenableFuture<HostAndPort> bindRange(boolean outer, PortRange portRange, ChannelInitializerSupplier initializerSupplier, HttpRequestHandler httpRequestHandler) {
+	public ListenableFuture<HostAndPort> bindRange(boolean outer, PortRange portRange, ChannelInitializer<SocketChannel> initializer, HttpRequestHandler httpRequestHandler) {
 		return netEventLoop.submit(() -> {
 			try {
 				return managerWrapper.getHttpSessionManager().bindRange(this, outer, portRange,
-						initializerSupplier, httpRequestHandler);
+						initializer, httpRequestHandler);
 			} catch (Exception e){
 				ConcurrentUtils.rethrow(e);
 				// unreachable

@@ -22,6 +22,8 @@ import com.wjybxx.fastjgame.eventloop.NetEventLoop;
 import com.wjybxx.fastjgame.manager.NetEventManager;
 import com.wjybxx.fastjgame.net.*;
 import com.wjybxx.fastjgame.net.initializer.ChannelInitializerSupplier;
+import io.netty.channel.ChannelInitializer;
+import io.netty.channel.socket.SocketChannel;
 import okhttp3.Response;
 
 import java.io.IOException;
@@ -77,27 +79,27 @@ public interface NetContext {
 	 * 监听某个端口
 	 * @param outer 是否是外网断开
 	 * @param port 指定端口号
-	 * @param initializerSupplier 如何初始化channel
+	 * @param initializer 如何初始化channel
 	 * @param lifecycleAware 生命周期监听器
 	 * @param messageHandler 消息处理器
 	 * @return future 可以等待绑定完成。
 	 */
-	default ListenableFuture<HostAndPort> bind(boolean outer, int port, ChannelInitializerSupplier initializerSupplier,
+	default ListenableFuture<HostAndPort> bind(boolean outer, int port, ChannelInitializer<SocketChannel> initializer,
 											   SessionLifecycleAware<S2CSession> lifecycleAware,
 											   MessageHandler messageHandler) {
-		return this.bindRange(outer, new PortRange(port, port), initializerSupplier, lifecycleAware, messageHandler);
+		return this.bindRange(outer, new PortRange(port, port), initializer, lifecycleAware, messageHandler);
 	}
 
 	/**
 	 * 监听某个端口
 	 * @param outer 是否是外网断开
 	 * @param portRange 端口范围
-	 * @param initializerSupplier 如何初始化channel
+	 * @param initializer 如何初始化channel
 	 * @param lifecycleAware 生命周期监听器
 	 * @param messageHandler 消息处理器
 	 * @return future 可以等待绑定完成。
 	 */
-	ListenableFuture<HostAndPort> bindRange(boolean outer, PortRange portRange, ChannelInitializerSupplier initializerSupplier,
+	ListenableFuture<HostAndPort> bindRange(boolean outer, PortRange portRange, ChannelInitializer<SocketChannel> initializer,
 											SessionLifecycleAware<S2CSession> lifecycleAware,
 											MessageHandler messageHandler);
 
@@ -106,7 +108,7 @@ public interface NetContext {
 	 * @param remoteGuid 远程角色guid
 	 * @param remoteRole 远程角色类型
 	 * @param remoteAddress 远程地址
-	 * @param initializerSupplier 如何初始化channel
+	 * @param initializerSupplier 如何初始化channel，supplier是因为断线重连可能需要新的initializer。
 	 * @param lifecycleAware 生命周期监听器
 	 * @param messageHandler 消息处理器
 	 * @return future，future 可以等待连接完成。
@@ -121,13 +123,13 @@ public interface NetContext {
 	 * 监听某个端口
 	 * @param outer 是否是外网断开
 	 * @param port 指定端口号
-	 * @param initializerSupplier 如何初始化channel
+	 * @param initializer 如何初始化channel
 	 * @param httpRequestHandler http请求处理器
 	 * @return future 可以等待绑定完成。
 	 */
-	default ListenableFuture<HostAndPort> bind(boolean outer, int port, ChannelInitializerSupplier initializerSupplier,
+	default ListenableFuture<HostAndPort> bind(boolean outer, int port, ChannelInitializer<SocketChannel> initializer,
 							 HttpRequestHandler httpRequestHandler) {
-		return this.bindRange(outer, new PortRange(port, port), initializerSupplier, httpRequestHandler);
+		return this.bindRange(outer, new PortRange(port, port), initializer, httpRequestHandler);
 	}
 
 	/**
@@ -135,12 +137,12 @@ public interface NetContext {
 	 *
 	 * @param outer 是否是外网断开
 	 * @param portRange 端口范围
-	 * @param initializerSupplier 如何初始化channel
+	 * @param initializer 如何初始化channel
 	 * @param httpRequestHandler http请求处理器
 	 * @return future 可以等待绑定完成。
 	 */
-	ListenableFuture<HostAndPort> bindRange(boolean outer, PortRange portRange, ChannelInitializerSupplier initializerSupplier,
-								  HttpRequestHandler httpRequestHandler);
+	ListenableFuture<HostAndPort> bindRange(boolean outer, PortRange portRange, ChannelInitializer<SocketChannel> initializer,
+											HttpRequestHandler httpRequestHandler);
 
 	/**
 	 * 同步get请求

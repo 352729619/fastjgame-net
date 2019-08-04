@@ -93,11 +93,10 @@ public class C2SSessionManager implements SessionManager {
     public void tick(){
         for (UserInfo userInfo : userInfoMap.values()) {
             for (SessionWrapper sessionWrapper: userInfo.sessionWrapperMap.values()){
-                if (sessionWrapper.getState() == null){
-                    continue;
-                }
                 // 状态机刷帧
-                sessionWrapper.getState().execute();
+                if (sessionWrapper.getState() != null){
+                    sessionWrapper.getState().execute();
+                }
                 // 检测超时的rpc调用
                 FastCollectionsUtils.removeIfAndThen(sessionWrapper.getRpcPromiseMap(),
                         (long k, RpcPromiseInfo rpcPromiseInfo) -> netTimeManager.getSystemMillTime() >= rpcPromiseInfo.timeoutMs,
@@ -273,6 +272,11 @@ public class C2SSessionManager implements SessionManager {
         // 标记为已关闭，这里不能调用close，否则死循环了。
         session.setClosed();
         try{
+            // 取消所有的rpcPromise
+            FastCollectionsUtils.removeIfAndThen(sessionWrapper.getRpcPromiseMap(),
+                    (k, rpcPromiseInfo) -> true,
+                    (k, rpcPromiseInfo) -> rpcPromiseInfo.rpcPromise.trySuccess(RpcResponse.SESSION_CLOSED));
+
             // 验证成功过才执行断开回调操作(调用过onSessionConnected方法)
             if (sessionWrapper.getVerifiedSequencer().get() > 0){
                 NetContext netContext = sessionWrapper.userInfo.netContext;

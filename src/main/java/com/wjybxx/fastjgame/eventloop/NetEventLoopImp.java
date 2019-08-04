@@ -154,8 +154,10 @@ public class NetEventLoopImp extends SingleThreadEventLoop implements NetEventLo
 
 			// 更新时间
 			netTimeManager.update(System.currentTimeMillis());
+
 			// 刷帧
 			netTimerManager.tickTrigger();
+			s2CSessionManager.tick();
 			c2SSessionManager.tick();
 
 			if (confirmShutdown()) {
