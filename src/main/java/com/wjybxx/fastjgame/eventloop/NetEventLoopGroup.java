@@ -39,7 +39,7 @@ public interface NetEventLoopGroup extends EventLoopGroup {
 	/**
 	 * 注册一个NetEventLoop的用户。
 	 * 当用户不再使用NetEventLoop时，避免内存泄漏，必须调用
-	 * {@link NetContext#unregister()} 或 {@link NetEventLoop#deregisterContext(long)}取消注册。
+	 * {@link NetContext#deregister()} 或 {@link NetEventLoop#deregisterContext(long)}取消注册。
 	 *
 	 * 注意：一个localGuid表示一个用户，在同一个NetEventLoop下只能创建一个Context，必须在取消注册成功之后才能再次注册。
 	 *

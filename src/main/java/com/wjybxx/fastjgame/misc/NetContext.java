@@ -65,7 +65,7 @@ public interface NetContext {
 	/**
 	 * 从注册的NetEventLoop上取消注册，会关闭该context关联的所有会话。
 	 */
-	ListenableFuture<?> unregister();
+	ListenableFuture<?> deregister();
 
 	// ----------------------------------- tcp/ws支持 ---------------------------------------
 

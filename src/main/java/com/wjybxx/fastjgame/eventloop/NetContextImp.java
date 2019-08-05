@@ -103,15 +103,15 @@ class NetContextImp implements NetContext {
 	}
 
 	@Override
-	public ListenableFuture<?> unregister() {
+	public ListenableFuture<?> deregister() {
 		// 逻辑层调用
 		return netEventLoop.deregisterContext(localGuid);
 	}
 
 	void afterRemoved() {
 		// 尝试删除自己的痕迹
-		managerWrapper.getS2CSessionManager().removeUserSession(localGuid, "unregister");
-		managerWrapper.getC2SSessionManager().removeUserSession(localGuid, "unregister");
+		managerWrapper.getS2CSessionManager().removeUserSession(localGuid, "deregister");
+		managerWrapper.getC2SSessionManager().removeUserSession(localGuid, "deregister");
 		managerWrapper.getHttpSessionManager().removeUserSession(localGuid);
 	}
 
