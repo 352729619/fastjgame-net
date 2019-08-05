@@ -104,6 +104,7 @@ class NetContextImp implements NetContext {
 
 	@Override
 	public ListenableFuture<?> unregister() {
+		// 逻辑层调用
 		return netEventLoop.deregisterContext(localGuid);
 	}
 
@@ -116,6 +117,7 @@ class NetContextImp implements NetContext {
 
 	@Override
 	public ListenableFuture<HostAndPort> bindRange(String host, PortRange portRange, ChannelInitializer<SocketChannel> initializer, SessionLifecycleAware<S2CSession> lifecycleAware, MessageHandler messageHandler) {
+		// 这里一定不是网络层，只有逻辑层才会调用bind
 		return netEventLoop.submit(() -> {
 			try {
 				return managerWrapper.getS2CSessionManager().bindRange(this, host, portRange,
@@ -130,6 +132,7 @@ class NetContextImp implements NetContext {
 
 	@Override
 	public ListenableFuture<?> connect(long remoteGuid, RoleType remoteRole, HostAndPort remoteAddress, ChannelInitializerSupplier initializerSupplier, SessionLifecycleAware<C2SSession> lifecycleAware, MessageHandler messageHandler) {
+		// 这里一定不是网络层，只有逻辑层才会调用connect
 		return netEventLoop.submit(() -> {
 			managerWrapper.getC2SSessionManager().connect(this, remoteGuid, remoteRole, remoteAddress,
 					initializerSupplier, lifecycleAware, messageHandler);
@@ -143,9 +146,9 @@ class NetContextImp implements NetContext {
 		return new HttpServerInitializer(localGuid, managerWrapper.getNetEventManager());
 	}
 
-
 	@Override
 	public ListenableFuture<HostAndPort> bindRange(String host, PortRange portRange, ChannelInitializer<SocketChannel> initializer, HttpRequestHandler httpRequestHandler) {
+		// 这里一定不是网络层，只有逻辑层才会调用bind
 		return netEventLoop.submit(() -> {
 			try {
 				return managerWrapper.getHttpSessionManager().bindRange(this, host, portRange,

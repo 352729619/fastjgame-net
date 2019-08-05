@@ -18,11 +18,12 @@ package com.wjybxx.fastjgame.net;
 
 
 import com.wjybxx.fastjgame.concurrent.ListenableFuture;
-import com.wjybxx.fastjgame.manager.SessionManager;
 import com.wjybxx.fastjgame.manager.NetConfigManager;
 import com.wjybxx.fastjgame.manager.NetManagerWrapper;
+import com.wjybxx.fastjgame.manager.SessionManager;
 import com.wjybxx.fastjgame.misc.HostAndPort;
 import com.wjybxx.fastjgame.misc.NetContext;
+import com.wjybxx.fastjgame.utils.EventLoopUtils;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -37,8 +38,13 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class S2CSession extends AbstractSession implements IS2CSession {
 
     private final NetContext netContext;
+    /**
+     *获取通用控制器
+     */
     private final NetManagerWrapper netManagerWrapper;
-
+    /**
+     * 本地端口
+     */
     private final HostAndPort localAddress;
     /**
      * 客户端唯一id，也就是sessionId
@@ -108,8 +114,8 @@ public class S2CSession extends AbstractSession implements IS2CSession {
     @Override
     public ListenableFuture<?> close() {
         if (stateHolder.compareAndSet(true, false)) {
-            return netContext.netEventLoop().submit(() -> {
-                getSessionManager().removeSession(localGuid(), remoteGuid(), "close");
+            return EventLoopUtils.submitOrRun(netContext.netEventLoop(), () -> {
+                return getSessionManager().removeSession(localGuid(), remoteGuid(), "close");
             });
         } else {
             // else 已关闭

@@ -20,14 +20,10 @@ import com.google.inject.Inject;
 import com.wjybxx.fastjgame.concurrent.EventLoop;
 import com.wjybxx.fastjgame.configwrapper.ConfigWrapper;
 import com.wjybxx.fastjgame.eventloop.NetEventLoopManager;
-import com.wjybxx.fastjgame.misc.HostAndPort;
-import com.wjybxx.fastjgame.misc.HttpResponseHelper;
-import com.wjybxx.fastjgame.misc.NetContext;
-import com.wjybxx.fastjgame.misc.PortRange;
+import com.wjybxx.fastjgame.misc.*;
 import com.wjybxx.fastjgame.net.HttpRequestEventParam;
 import com.wjybxx.fastjgame.net.HttpRequestHandler;
 import com.wjybxx.fastjgame.net.HttpSession;
-import com.wjybxx.fastjgame.net.initializer.ChannelInitializerSupplier;
 import com.wjybxx.fastjgame.trigger.Timer;
 import com.wjybxx.fastjgame.utils.CollectionUtils;
 import com.wjybxx.fastjgame.utils.ConcurrentUtils;
@@ -59,7 +55,7 @@ public class HttpSessionManager {
 	private final NetEventLoopManager netEventLoopManager;
 	private final NetConfigManager netConfigManager;
 	private final NetTimeManager netTimeManager;
-	private final AcceptManager acceptManager;
+	private final AcceptorManager acceptorManager;
 
 	/**
 	 * 由于不方便监听这个用户的终止信息，只能监听它所在的EventLoop终止，存在一定程度的内存泄漏。
@@ -69,32 +65,33 @@ public class HttpSessionManager {
 
 	@Inject
 	public HttpSessionManager(NetTimerManager netTimerManager, NetEventLoopManager netEventLoopManager, NetConfigManager netConfigManager,
-							  NetTimeManager netTimeManager, AcceptManager acceptManager) {
+							  NetTimeManager netTimeManager, AcceptorManager acceptorManager) {
 		this.netEventLoopManager = netEventLoopManager;
 		this.netConfigManager = netConfigManager;
 		this.netTimeManager = netTimeManager;
-		this.acceptManager = acceptManager;
+		this.acceptorManager = acceptorManager;
 		Timer timer = new Timer(this.netConfigManager.httpSessionTimeout()*1000,Integer.MAX_VALUE,this::checkSessionTimeout);
 		netTimerManager.addTimer(timer);
 	}
 
+	/** 解决循环依赖 */
 	public void setManagerWrapper(NetManagerWrapper managerWrapper) {
 		this.managerWrapper = managerWrapper;
 	}
 
 	/**
-	 * @see AcceptManager#bindRange(String, PortRange, ChannelInitializer)
+	 * @see AcceptorManager#bindRange(String, PortRange, ChannelInitializer)
 	 */
 	public HostAndPort bindRange(NetContext netContext, String host, PortRange portRange,
 								 ChannelInitializer<SocketChannel> initializer,
 								 HttpRequestHandler httpRequestHandler) throws BindException {
 		assert netEventLoopManager.inEventLoop();
 		// 绑定端口
-		HostAndPort localAddress = acceptManager.bindRange(host, portRange, initializer);
+		BindResult bindResult = acceptorManager.bindRange(host, portRange, initializer);
 		// 保存用户信息
-		userInfoMap.computeIfAbsent(netContext.localGuid(), localGuid -> new UserInfo(netContext, localAddress, initializer, httpRequestHandler));
+		userInfoMap.computeIfAbsent(netContext.localGuid(), localGuid -> new UserInfo(netContext, bindResult, initializer, httpRequestHandler));
 
-		return localAddress;
+		return bindResult.getHostAndPort();
 	}
 
 	/**
@@ -125,6 +122,8 @@ public class HttpSessionManager {
 		CollectionUtils.removeIfAndThen(userInfo.sessionWrapperMap,
 				(channel, sessionWrapper) -> true,
 				(channel, sessionWrapper) -> NetUtils.closeQuietly(channel));
+
+		NetUtils.closeQuietly(userInfo.bindResult.getChannel());
 	}
 
 	/**
@@ -153,7 +152,7 @@ public class HttpSessionManager {
 		}
 		// 保存session
 		SessionWrapper sessionWrapper = userInfo.sessionWrapperMap.computeIfAbsent(channel,
-				k -> new SessionWrapper(new HttpSession(userInfo.netContext, userInfo.localAddress, this, channel)));
+				k -> new SessionWrapper(new HttpSession(userInfo.netContext, userInfo.bindResult.getHostAndPort(), this, channel)));
 
 		// 保持一段时间的活性
 		sessionWrapper.setSessionTimeout(netConfigManager.httpSessionTimeout() + netTimeManager.getSystemSecTime());
@@ -188,19 +187,22 @@ public class HttpSessionManager {
 	 * http客户端使用者信息
 	 */
 	private static class UserInfo {
-
+		/** 用户关联的上下文 */
 		private final NetContext netContext;
-		private final HostAndPort localAddress;
+		/** 绑定的端口信息等，关联的channel需要再用户取消注册后关闭 */
+		private final BindResult bindResult;
+		/** 端口初始化类 */
 		private final ChannelInitializer<SocketChannel>  initializer;
+		/** http请求处理器 */
 		private final HttpRequestHandler httpRequestHandler;
 
 		/** 该用户关联的所有的会话 */
 		private final Map<Channel, SessionWrapper> sessionWrapperMap = new IdentityHashMap<>();
 
-		private UserInfo(NetContext netContext, HostAndPort localAddress,
+		private UserInfo(NetContext netContext, BindResult bindResult,
 						 ChannelInitializer<SocketChannel> initializer, HttpRequestHandler httpRequestHandler) {
 			this.netContext = netContext;
-			this.localAddress = localAddress;
+			this.bindResult = bindResult;
 			this.initializer = initializer;
 			this.httpRequestHandler = httpRequestHandler;
 		}

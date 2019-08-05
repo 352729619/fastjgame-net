@@ -17,6 +17,7 @@
 package com.wjybxx.fastjgame.manager;
 
 import com.google.inject.Inject;
+import com.wjybxx.fastjgame.misc.BindResult;
 import com.wjybxx.fastjgame.misc.HostAndPort;
 import com.wjybxx.fastjgame.misc.PortRange;
 import com.wjybxx.fastjgame.utils.NetUtils;
@@ -47,15 +48,15 @@ import java.net.BindException;
  * github - https://github.com/hl845740757
  */
 @ThreadSafe
-public class AcceptManager {
+public class AcceptorManager {
 
-    private static final Logger logger = LoggerFactory.getLogger(AcceptManager.class);
+    private static final Logger logger = LoggerFactory.getLogger(AcceptorManager.class);
 
     private final NetConfigManager netConfigManager;
     private final NettyThreadManager nettyThreadManager;
 
     @Inject
-    public AcceptManager(NetConfigManager netConfigManager, NettyThreadManager nettyThreadManager) {
+    public AcceptorManager(NetConfigManager netConfigManager, NettyThreadManager nettyThreadManager) {
         this.netConfigManager = netConfigManager;
         this.nettyThreadManager = nettyThreadManager;
     }
@@ -69,7 +70,7 @@ public class AcceptManager {
      * @param initializer channel初始化类，根据使用的协议(eg:tcp,ws) 和 序列化方式(eg:json,protoBuf)确定
      * @return 监听成功成功则返回绑定的地址，失败则返回null
      */
-    public HostAndPort bind(String host, int port, ChannelInitializer<SocketChannel> initializer) throws BindException {
+    public BindResult bind(String host, int port, ChannelInitializer<SocketChannel> initializer) throws BindException {
         ServerBootstrap serverBootstrap = new ServerBootstrap();
         serverBootstrap.group(nettyThreadManager.getBossGroup(), nettyThreadManager.getWorkerGroup());
 
@@ -92,7 +93,7 @@ public class AcceptManager {
         try {
             channelFuture.sync();
             logger.info("bind {}:{} success.",host,port);
-            return new HostAndPort(host, port);
+            return new BindResult(channelFuture.channel(), new HostAndPort(host, port));
         } catch (InterruptedException e) {
             // ignore e
             NetUtils.closeQuietly(channelFuture);
@@ -111,7 +112,7 @@ public class AcceptManager {
      * @param initializer channel初始化类
      * @return 监听成功的端口号，失败返回null
      */
-    public HostAndPort bindRange(String host, PortRange portRange, ChannelInitializer<SocketChannel> initializer) throws BindException {
+    public BindResult bindRange(String host, PortRange portRange, ChannelInitializer<SocketChannel> initializer) throws BindException {
         if (portRange.startPort <=0){
             throw new IllegalArgumentException("fromPort " + portRange.startPort);
         }

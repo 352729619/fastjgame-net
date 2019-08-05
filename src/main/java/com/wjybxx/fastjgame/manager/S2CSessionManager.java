@@ -75,7 +75,7 @@ public class S2CSessionManager implements SessionManager {
     private final NetTimeManager netTimeManager;
     private final NetConfigManager netConfigManager;
     private final TokenManager tokenManager;
-    private final AcceptManager acceptManager;
+    private final AcceptorManager acceptorManager;
     private final ForbiddenTokenHelper forbiddenTokenHelper;
     /** 所有用户的会话信息 */
     private final Long2ObjectMap<UserInfo> userInfoMap = new Long2ObjectOpenHashMap<>();
@@ -83,11 +83,11 @@ public class S2CSessionManager implements SessionManager {
     @Inject
     public S2CSessionManager(NetTimeManager netTimeManager, NetConfigManager netConfigManager,
                              NetTimerManager netTimerManager, TokenManager tokenManager,
-                             AcceptManager acceptManager) {
+                             AcceptorManager acceptorManager) {
         this.netTimeManager = netTimeManager;
         this.netConfigManager = netConfigManager;
         this.tokenManager = tokenManager;
-        this.acceptManager = acceptManager;
+        this.acceptorManager = acceptorManager;
         this.forbiddenTokenHelper=new ForbiddenTokenHelper(netTimeManager, netTimerManager, netConfigManager.tokenForbiddenTimeout());
 
         // 定时检查会话超时的timer(1/3个周期检测一次)
@@ -95,6 +95,7 @@ public class S2CSessionManager implements SessionManager {
         netTimerManager.addTimer(checkTimeOutTimer);
     }
 
+    /** 打破环形依赖 */
     public void setManagerWrapper(NetManagerWrapper managerWrapper) {
         this.managerWrapper = managerWrapper;
     }
@@ -122,18 +123,18 @@ public class S2CSessionManager implements SessionManager {
     }
 
     /**
-     * @see AcceptManager#bindRange(String, PortRange, ChannelInitializer)
+     * @see AcceptorManager#bindRange(String, PortRange, ChannelInitializer)
      */
     public HostAndPort bindRange(NetContext netContext, String host, PortRange portRange,
                                  ChannelInitializer<SocketChannel> initializer,
                                  SessionLifecycleAware<S2CSession> lifecycleAware,
                                  MessageHandler messageHandler) throws BindException {
 
-        final HostAndPort localAddress = acceptManager.bindRange(host, portRange, initializer);
+        final BindResult bindResult = acceptorManager.bindRange(host, portRange, initializer);
         // 由于是监听方，因此方法参数是针对该用户的所有客户端的
         userInfoMap.computeIfAbsent(netContext.localGuid(),
-                localGuid -> new UserInfo(netContext, localAddress, initializer, lifecycleAware, messageHandler));
-        return localAddress;
+                localGuid -> new UserInfo(netContext, bindResult, initializer, lifecycleAware, messageHandler));
+        return bindResult.getHostAndPort();
     }
 
     /**
@@ -264,6 +265,7 @@ public class S2CSessionManager implements SessionManager {
                 (k, rpcPromiseInfo) -> rpcPromiseInfo.rpcPromise.trySuccess(RpcResponse.SESSION_CLOSED));
         
         notifyClientExit(sessionWrapper.getChannel(),sessionWrapper);
+
         logger.info("remove session by reason of {}, session info={}.",reason, session);
 
         // 尝试提交到用户线程
@@ -296,6 +298,8 @@ public class S2CSessionManager implements SessionManager {
         FastCollectionsUtils.removeIfAndThen(userInfo.sessionWrapperMap,
                 (k, sessionWrapper) -> true,
                 (k, sessionWrapper) -> afterRemoved(sessionWrapper, reason));
+        // 绑定的端口需要释放
+        NetUtils.closeQuietly(userInfo.bindResult.getChannel());
     }
 
     /**
@@ -446,7 +450,7 @@ public class S2CSessionManager implements SessionManager {
 
         // 登录成功
         UserInfo userInfo = userInfoMap.get(requestParam.localGuid());
-        S2CSession session = new S2CSession(userInfo.netContext, userInfo.localAddress, managerWrapper,
+        S2CSession session = new S2CSession(userInfo.netContext, userInfo.bindResult.getHostAndPort(), managerWrapper,
                 requestParam.getClientGuid(), clientToken.getClientRoleType());
 
         SessionWrapper sessionWrapper = new SessionWrapper(userInfo, session);
@@ -691,24 +695,23 @@ public class S2CSessionManager implements SessionManager {
 
         // ------------- 会话关联的本地对象 -----------------
         private final NetContext netContext;
-        private final HostAndPort localAddress;
-
+        /** 绑定的结果，关联的channel需要在用户删除后关闭 */
+        private final BindResult bindResult;
         /** 会话生命周期handler */
         private final SessionLifecycleAware<S2CSession> lifecycleAware;
         /** 如何初始新接入的channel */
         private final ChannelInitializer<SocketChannel> initializer;
         /** 该端口上的消息处理器 */
         private final MessageHandler messageHandler;
-
         /** 该用户关联的所有会话信息 */
         private final Long2ObjectMap<SessionWrapper> sessionWrapperMap = new Long2ObjectOpenHashMap<>();
 
-        private UserInfo(NetContext netContext, HostAndPort localAddress,
+        private UserInfo(NetContext netContext, BindResult bindResult,
                          @Nonnull ChannelInitializer<SocketChannel> initializer,
                          @Nonnull SessionLifecycleAware<S2CSession> lifecycleAware,
                          @Nonnull MessageHandler messageHandler) {
             this.netContext = netContext;
-            this.localAddress = localAddress;
+            this.bindResult = bindResult;
             this.lifecycleAware = lifecycleAware;
             this.initializer = initializer;
             this.messageHandler = messageHandler;
@@ -730,7 +733,7 @@ public class S2CSessionManager implements SessionManager {
         /**
          * 会话的消息队列
          */
-        private final MessageQueue messageQueue=new MessageQueue();
+        private final MessageQueue messageQueue = new MessageQueue();
         /**
          * 会话channel一定不为null
          */

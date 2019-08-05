@@ -30,6 +30,7 @@ import java.util.Map;
 
 /**
  * 逻辑层使用的网络上下文
+ *
  * @author houlei
  * @version 1.0
  * date - 2019/8/3
@@ -97,7 +98,7 @@ public interface NetContext {
 											MessageHandler messageHandler);
 
 	/**
-	 * 监听某个端口
+	 * 连接远程某个端口
 	 * @param remoteGuid 远程角色guid
 	 * @param remoteRole 远程角色类型
 	 * @param remoteAddress 远程地址

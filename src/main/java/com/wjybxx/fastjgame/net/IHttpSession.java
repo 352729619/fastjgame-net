@@ -16,6 +16,7 @@
 
 package com.wjybxx.fastjgame.net;
 
+import com.wjybxx.fastjgame.concurrent.ListenableFuture;
 import com.wjybxx.fastjgame.misc.HostAndPort;
 import com.wjybxx.fastjgame.misc.HttpResponseBuilder;
 import io.netty.channel.ChannelFuture;
@@ -52,7 +53,7 @@ public interface IHttpSession {
 	 * 关闭session。
 	 * 子类实现必须线程安全。
 	 */
-	void close();
+	ListenableFuture<?> close();
 
 	/**
 	 * 发送一个响应

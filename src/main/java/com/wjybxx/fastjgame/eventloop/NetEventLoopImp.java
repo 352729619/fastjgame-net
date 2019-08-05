@@ -133,6 +133,7 @@ public class NetEventLoopImp extends SingleThreadEventLoop implements NetEventLo
 		if (localEventLoop instanceof NetEventLoop) {
 			throw new IllegalArgumentException("Unexpected invoke.");
 		}
+		// 这里一定是逻辑层，不同线程
 		return submit(() -> {
 			if (registeredUserMap.containsKey(localGuid)) {
 				throw new IllegalArgumentException("user " + localGuid + " is already registered!");
@@ -199,6 +200,7 @@ public class NetEventLoopImp extends SingleThreadEventLoop implements NetEventLo
 	@Nonnull
 	@Override
 	public ListenableFuture<?> deregisterContext(long localGuid) {
+		// 逻辑层调用
 		return submit(() -> {
 			NetContextImp netContext = registeredUserMap.remove(localGuid);
 			if (null == netContext) {
@@ -210,7 +212,7 @@ public class NetEventLoopImp extends SingleThreadEventLoop implements NetEventLo
 	}
 
 	private void onUserEventLoopTerminal(EventLoop userEventLoop) {
-		//
+		// 删除该EventLoop相关的所有context
 		FastCollectionsUtils.removeIfAndThen(registeredUserMap,
 				(k, netContext) -> netContext.localEventLoop() == userEventLoop,
 				(k, netContext) -> netContext.afterRemoved());

@@ -44,7 +44,7 @@ public class NetModule extends AbstractModule {
 		bind(NettyThreadManager.class).in(Singleton.class);
 		bind(HttpClientManager.class).in(Singleton.class);
 
-		bind(AcceptManager.class).in(Singleton.class);
+		bind(AcceptorManager.class).in(Singleton.class);
 		bind(TokenManager.class).in(Singleton.class);
 
 		bind(NetTimeManager.class).in(Singleton.class);

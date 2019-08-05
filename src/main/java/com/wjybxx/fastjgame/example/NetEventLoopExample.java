@@ -49,7 +49,7 @@ import java.util.HashMap;
 public class NetEventLoopExample {
 
     public static void main(String[] args) {
-        final CodecHelper codecHelper = CodecHelper.newInstance(new HashMappingStrategy(p_common.class,
+        final CodecHelper codecHelper = CodecHelper.newInstance(new ExampleHashMappingStrategy(p_common.class,
                         p_center_scene.class),
                 new ProtoBufMessageSerializer());
 

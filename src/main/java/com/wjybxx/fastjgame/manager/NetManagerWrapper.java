@@ -18,7 +18,6 @@ package com.wjybxx.fastjgame.manager;
 
 import com.google.inject.Inject;
 import com.wjybxx.fastjgame.eventloop.NetEventLoopManager;
-import com.wjybxx.fastjgame.manager.*;
 
 /**
  * NetEventLoop不是依赖注入的，一个个获取实例实在有点麻烦...
@@ -35,7 +34,7 @@ public class NetManagerWrapper {
 	private final NetEventManager netEventManager;
 	private final NettyThreadManager nettyThreadManager;
 	private final NetConfigManager netConfigManager;
-	private final AcceptManager acceptManager;
+	private final AcceptorManager acceptorManager;
 	private final HttpClientManager httpClientManager;
 	private final NetTimeManager netTimeManager;
 	private final NetTimerManager netTimerManager;
@@ -46,7 +45,7 @@ public class NetManagerWrapper {
 							 S2CSessionManager s2CSessionManager, C2SSessionManager c2SSessionManager,
 							 HttpSessionManager httpSessionManager, NetEventManager netEventManager,
 							 NettyThreadManager nettyThreadManager,
-							 NetConfigManager netConfigManager, AcceptManager acceptManager,
+							 NetConfigManager netConfigManager, AcceptorManager acceptorManager,
 							 HttpClientManager httpClientManager, NetTimeManager netTimeManager,
 							 NetTimerManager netTimerManager, TokenManager tokenManager) {
 		this.netEventLoopManager = netEventLoopManager;
@@ -56,7 +55,7 @@ public class NetManagerWrapper {
 		this.netEventManager = netEventManager;
 		this.nettyThreadManager = nettyThreadManager;
 		this.netConfigManager = netConfigManager;
-		this.acceptManager = acceptManager;
+		this.acceptorManager = acceptorManager;
 		this.httpClientManager = httpClientManager;
 		this.netTimeManager = netTimeManager;
 		this.netTimerManager = netTimerManager;
@@ -87,8 +86,8 @@ public class NetManagerWrapper {
 		return nettyThreadManager;
 	}
 
-	public AcceptManager getAcceptManager() {
-		return acceptManager;
+	public AcceptorManager getAcceptorManager() {
+		return acceptorManager;
 	}
 
 	public HttpClientManager getHttpClientManager() {

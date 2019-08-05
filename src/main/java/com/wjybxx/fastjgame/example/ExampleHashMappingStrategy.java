@@ -29,15 +29,16 @@ import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
  * date - 2019/8/4
  * github - https://github.com/hl845740757
  */
-public class HashMappingStrategy implements MessageMappingStrategy {
+public class ExampleHashMappingStrategy implements MessageMappingStrategy {
 
+    /** 外部类信息 */
     private final Class<?>[] outerClassArray;
 
-    public HashMappingStrategy(Class<?> outerClass) {
+    public ExampleHashMappingStrategy(Class<?> outerClass) {
         this(new Class[]{outerClass});
     }
 
-    public HashMappingStrategy(Class<?>... outerClassArray) {
+    public ExampleHashMappingStrategy(Class<?>... outerClassArray) {
         this.outerClassArray = outerClassArray;
     }
 

@@ -71,21 +71,22 @@ public class C2SSessionManager implements SessionManager {
 
     private NetManagerWrapper managerWrapper;
     private final NetConfigManager netConfigManager;
-    private final AcceptManager acceptManager;
+    private final AcceptorManager acceptorManager;
     private final NetTimeManager netTimeManager;
     private final TokenManager tokenManager;
     /** 所有用户的会话信息 */
     private final Long2ObjectMap<UserInfo> userInfoMap = new Long2ObjectOpenHashMap<>();
 
     @Inject
-    public C2SSessionManager(NetConfigManager netConfigManager, AcceptManager acceptManager,
+    public C2SSessionManager(NetConfigManager netConfigManager, AcceptorManager acceptorManager,
                              NetTimeManager netTimeManager, TokenManager tokenManager) {
         this.netConfigManager = netConfigManager;
-        this.acceptManager = acceptManager;
+        this.acceptorManager = acceptorManager;
         this.netTimeManager = netTimeManager;
         this.tokenManager = tokenManager;
     }
 
+    /** 解决循环依赖 */
     public void setManagerWrapper(NetManagerWrapper managerWrapper) {
         this.managerWrapper = managerWrapper;
     }
@@ -99,8 +100,8 @@ public class C2SSessionManager implements SessionManager {
                 }
                 // 检测超时的rpc调用
                 FastCollectionsUtils.removeIfAndThen(sessionWrapper.getRpcPromiseMap(),
-                        (long k, RpcPromiseInfo rpcPromiseInfo) -> netTimeManager.getSystemMillTime() >= rpcPromiseInfo.timeoutMs,
-                        (long k, RpcPromiseInfo rpcPromiseInfo) -> rpcPromiseInfo.rpcPromise.trySuccess(RpcResponse.TIMEOUT));
+                        (k, rpcPromiseInfo) -> netTimeManager.getSystemMillTime() >= rpcPromiseInfo.timeoutMs,
+                        (k, rpcPromiseInfo) -> rpcPromiseInfo.rpcPromise.trySuccess(RpcResponse.TIMEOUT));
             }
         }
     }
@@ -390,7 +391,6 @@ public class C2SSessionManager implements SessionManager {
      */
     void onRcvServerRpcResponse(RpcResponseEventParam rpcResponseEventParam) {
         final Channel eventChannel = rpcResponseEventParam.channel();
-        RpcResponseMessageTO responseMessageTO = rpcResponseEventParam.messageTO();
         ifEventChannelOK(eventChannel, rpcResponseEventParam, c2SSessionState -> {
             c2SSessionState.onRcvServerRpcResponse(eventChannel, rpcResponseEventParam);
         });
@@ -569,7 +569,7 @@ public class C2SSessionManager implements SessionManager {
         private void tryConnect(){
             tryTimes++;
             connectStartTime = netTimeManager.getSystemMillTime();
-            channelFuture = acceptManager.connectAsyn(session.getHostAndPort(), sessionWrapper.getInitializerSupplier().get());
+            channelFuture = acceptorManager.connectAsyn(session.getHostAndPort(), sessionWrapper.getInitializerSupplier().get());
             logger.debug("tryConnect remote {} ,tryTimes {}.", session.getHostAndPort(),tryTimes);
         }
 
@@ -722,6 +722,11 @@ public class C2SSessionManager implements SessionManager {
         }
 
         @Override
+        protected void onRcvServerRpcResponse(Channel eventChannel, RpcResponseEventParam responseEventParam) {
+            reconnect("onRcvServerRpcResponse,but missing token result");
+        }
+
+        @Override
         protected void onRcvServerAckPong(Channel eventChannel, AckPingPongEventParam ackPongParam) {
             reconnect("onRcvServerAckPong,but missing token result");
         }
@@ -770,15 +775,21 @@ public class C2SSessionManager implements SessionManager {
                 // else 会话已关闭
             }else {
                 logger.info("reconnect verified success, verifiedTimes={},sessionInfo={}", verifiedTimes, session);
-
                 // 重发未确认接受到的消息
-                MessageQueue messageQueue= getMessageQueue();
-                if (messageQueue.getSentQueue().size()>0){
-                    for (NetMessage message:messageQueue.getSentQueue()){
-                        channel.write(message.build(messageQueue.getAck()));
-                    }
-                    channel.flush();
+                resend();
+            }
+        }
+
+        /**
+         * 重发那些已发送，但是未被确认的消息
+         */
+        private void resend() {
+            MessageQueue messageQueue= getMessageQueue();
+            if (messageQueue.getSentQueue().size()>0){
+                for (NetMessage message:messageQueue.getSentQueue()){
+                    channel.write(message.build(messageQueue.getAck()));
                 }
+                channel.flush();
             }
         }
 
@@ -790,7 +801,7 @@ public class C2SSessionManager implements SessionManager {
                 long firstMessageTimeout=messageQueue.getSentQueue().getFirst().getTimeout();
                 // 超时未收到第一条消息的ack
                 if (netTimeManager.getSystemMillTime()>=firstMessageTimeout){
-                    reconnect("first msg of sentQueue messageTimeout.");
+                    reconnect("first msg of sentQueue timeout.");
                     return;
                 }
             }

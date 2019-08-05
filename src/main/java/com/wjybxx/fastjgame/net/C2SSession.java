@@ -22,6 +22,7 @@ import com.wjybxx.fastjgame.manager.NetConfigManager;
 import com.wjybxx.fastjgame.manager.NetManagerWrapper;
 import com.wjybxx.fastjgame.misc.HostAndPort;
 import com.wjybxx.fastjgame.misc.NetContext;
+import com.wjybxx.fastjgame.utils.EventLoopUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -150,8 +151,8 @@ public class C2SSession extends AbstractSession implements IC2SSession {
     public ListenableFuture<?> close() {
         // 先切换状态
         if (stateHolder.compareAndSet(ST_INACTIVE, ST_CLOSED) || stateHolder.compareAndSet(ST_ACTIVE, ST_CLOSED)) {
-            return netContext.netEventLoop().submit(() -> {
-                netManagerWrapper.getC2SSessionManager().removeSession(localGuid(), remoteGuid(), "close method");
+            return EventLoopUtils.submitOrRun(netContext.netEventLoop(), () -> {
+                return netManagerWrapper.getC2SSessionManager().removeSession(localGuid(), remoteGuid(), "close method");
             });
         } else {
             // else 早已经关闭
