@@ -17,14 +17,14 @@ fastjgame-net模块独立，一个高性能的可扩展底层通信框架。支�
     方法：{@link #syncRpc(Object)}
 
 ### 常见问题 
- Q: 为什么不没提供同步调用 与 异步调用 之间的顺序保证？
+ Q: 为什么不没提供同步调用 与 异步调用 之间的顺序保证？  
  A: 基于这样的考虑：同步调用表示一种更迫切的需求，期望更快的处理，更快的返回，而异步调用没有这样的语义。
  
- Q: {@link RpcFuture#get()}{@link RpcFuture#await()} 阻塞到结果返回是同步调用吗？
+ Q: {@link RpcFuture#get()}{@link RpcFuture#await()} 阻塞到结果返回是同步调用吗？  
  A: 不是！！！ {@link #rpc(Object)}是异步调用！即使你可以阻塞到结果返回，它与{@link #syncRpc(Object)}在传输的时候有本质上的区别。
       所以，如果你如果不能理解{@link #syncRpc(Object)}的导致的时序问题，那么就不要用它。
  
- Q: {@link RpcFuture#get()}{@link RpcFuture#await()}有什么保证？
+ Q: {@link RpcFuture#get()}{@link RpcFuture#await()}有什么保证？  
  A: 当我从这两个方法返回时，能保证对方按顺序处理了我之前发送的所有消息和rpc请求。
 
 ### 注意死锁问题

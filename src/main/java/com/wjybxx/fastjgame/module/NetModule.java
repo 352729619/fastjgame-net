@@ -34,7 +34,6 @@ public class NetModule extends AbstractModule {
 	@Override
 	protected void configure() {
 		bind(NetEventLoopManager.class).in(Singleton.class);
-		bind(NetConfigManager.class).in(Singleton.class);
 
 		bind(C2SSessionManager.class).in(Singleton.class);
 		bind(S2CSessionManager.class).in(Singleton.class);

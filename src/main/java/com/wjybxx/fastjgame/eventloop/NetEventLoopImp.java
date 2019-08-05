@@ -21,6 +21,7 @@ import com.google.inject.Injector;
 import com.wjybxx.fastjgame.concurrent.*;
 import com.wjybxx.fastjgame.manager.*;
 import com.wjybxx.fastjgame.misc.NetContext;
+import com.wjybxx.fastjgame.module.NetGlobalModule;
 import com.wjybxx.fastjgame.module.NetModule;
 import com.wjybxx.fastjgame.net.*;
 import com.wjybxx.fastjgame.utils.ConcurrentUtils;
@@ -48,6 +49,9 @@ import java.util.concurrent.locks.LockSupport;
  */
 public class NetEventLoopImp extends SingleThreadEventLoop implements NetEventLoop{
 
+	/** 用于获取全局单例 */
+	private static final Injector globalModule = Guice.createInjector(new NetGlobalModule());
+
 	private final NetManagerWrapper managerWrapper;
 	private final NetConfigManager netConfigManager;
 	private final NettyThreadManager nettyThreadManager;
@@ -73,7 +77,9 @@ public class NetEventLoopImp extends SingleThreadEventLoop implements NetEventLo
 	public NetEventLoopImp(@Nullable EventLoopGroup parent, @Nonnull ThreadFactory threadFactory, @Nonnull RejectedExecutionHandler rejectedExecutionHandler) {
 		super(parent, threadFactory, rejectedExecutionHandler);
 
-		Injector injector = Guice.createInjector(new NetModule());
+		// 使得新创建的injector可以直接使用全局单例
+		Injector injector = globalModule.createChildInjector(new NetModule());
+
 		// 发布自身，使得该eventLoop的其它管理器可以方便的获取该对象
 		// Q:为什么没使用threadLocal？
 		// A:本来想使用的，但是如果提供一个全局的接口的话，它也会对逻辑层开放，而逻辑层如果调用了一定会导致错误。使用threadLocal暴露了不该暴露的接口。
