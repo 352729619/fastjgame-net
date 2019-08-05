@@ -4,9 +4,8 @@ fastjgame-net模块独立，一个高性能的可扩展底层通信框架。支�
 
 ### 本模块到底提没提供RPC?
    严格的说，本模块提供了对RPC的支持，但是如何解析RPC包的内容，并调用到指定方法，这个是用户自定义的！没有限定rpc的解析方式，用户可以通过**MessageHandler**实现自定义的单向消息和RPC的解析方式。
-   (测试用例里是一个消息结构对应一个唯一的处理方法，但其本质还是rpc)
+   在**fastjgame**项目中 [MessageDispatcherMrg](https://github.com/hl845740757/fastjgame/blob/master/game-core/src/main/java/com/wjybxx/fastjgame/mrg/MessageDispatcherMrg.java)是一个消息结构对应一个唯一的方法调用，但其本质还是rpc。
 
-### rpc的调用
 
 ### 消息顺序问题(极其重要)
  网络层提供以下保证：
