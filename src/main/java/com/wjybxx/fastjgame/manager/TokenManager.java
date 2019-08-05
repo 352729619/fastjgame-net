@@ -73,7 +73,7 @@ public class TokenManager {
      * 为指定双方创建一个再也无法验证成功的token
      * @param clientGuid 客户端guid
      * @param serverGuid 服务器guid
-     * @return
+     * @return failToken
      */
     public Token newFailToken(long clientGuid, long serverGuid){
         return new Token(clientGuid, RoleType.INVALID, serverGuid, RoleType.INVALID, -1, -1);
@@ -81,8 +81,7 @@ public class TokenManager {
 
     /**
      * 是否是用于标记失败的token
-     * @param token
-     * @return
+     * @return 返回true表示该token必定认定失败
      */
     public boolean isFailToken(Token token){
         return token.getClientRoleType() == RoleType.INVALID

@@ -48,7 +48,7 @@ public class StandardRpcResponseChannel implements RpcResponseChannel{
 
 	@Override
 	public void writeFailure(@Nonnull RpcResultCode errorCode) {
-		write(new RpcResponse(errorCode, null));
+		write(RpcResponse.newFailResponse(errorCode));
 	}
 
 	@Override

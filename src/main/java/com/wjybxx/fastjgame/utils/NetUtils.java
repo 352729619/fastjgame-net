@@ -63,7 +63,7 @@ public class NetUtils {
      * 安静的关闭channel,不产生任何影响
      */
     public static void closeQuietly(Channel channel){
-        if (null!=channel){
+        if (null != channel){
             try{
                 channel.close();
             }catch (Exception e){
@@ -90,7 +90,7 @@ public class NetUtils {
      * 安静的关闭ctx，不产生任何影响
      */
     public static void closeQuietly(ChannelHandlerContext ctx) {
-        if (null!=ctx){
+        if (null != ctx){
             try {
                 ctx.close();
             }catch (Exception e){
@@ -113,23 +113,6 @@ public class NetUtils {
     }
 
     /**
-     * 计算一个hash值。
-     * (目前就是字符串自身的hashcode计算方式)
-     * @param str 待计算的字符串
-     * @return hashCode
-     */
-    public static int uniqueHash(String str){
-        if (null == str){
-            throw new NullPointerException("str");
-        }
-        int hasCode=0;
-        for (int index=0;index<str.length();index++){
-            hasCode = 31*hasCode + str.charAt(index);
-        }
-        return hasCode;
-    }
-
-    /**
      * 计算byteBuf指定区域字节的校验和
      * @param byteBuf byteBuf
      * @param offset 偏移量
@@ -146,7 +129,7 @@ public class NetUtils {
 
     /**
      * 获取机器内网ip
-     * @return
+     * @return 内网地址
      */
     public static String getLocalIp(){
         return localIp;
@@ -154,7 +137,7 @@ public class NetUtils {
 
     /**
      * 获取机器外网ip
-     * @return
+     * @return 如果无法获取到外网地址，返回的是内网地址
      */
     public static String getOuterIp(){
         return outerIp;
@@ -273,7 +256,6 @@ public class NetUtils {
      *  例如, 如果参数 connectionTime 为 2, 参数 latency 为 1, 而参数bandwidth 为 3,
      *  就表示最高带宽最重要, 其次是最少连接时间, 最后是最小延迟.
      *
-     * @param channel
      */
     public static void setChannelPerformancePreferences(Channel channel) {
         ChannelConfig channelConfig = channel.config();

@@ -126,7 +126,7 @@ public class C2SSession extends AbstractSession implements IC2SSession {
 
     /**
      * 尝试激活会话，由于可能与{@link #close()}存在竞争，这里可能失败
-     * @return 如果成功设置为激活状态则返回true，否则表示已关闭(应该激活方法只会调用一次)
+     * @return 如果成功设置为激活状态则返回true，否则表示已关闭(激活方法只会调用一次)
      */
     public boolean tryActive() {
         assert netContext.netEventLoop().inEventLoop();
@@ -151,8 +151,9 @@ public class C2SSession extends AbstractSession implements IC2SSession {
     public ListenableFuture<?> close() {
         // 先切换状态
         if (stateHolder.compareAndSet(ST_INACTIVE, ST_CLOSED) || stateHolder.compareAndSet(ST_ACTIVE, ST_CLOSED)) {
+            // 可能是自己关闭，因此可能是当前线程
             return EventLoopUtils.submitOrRun(netContext.netEventLoop(), () -> {
-                return netManagerWrapper.getC2SSessionManager().removeSession(localGuid(), remoteGuid(), "close method");
+                netManagerWrapper.getC2SSessionManager().removeSession(localGuid(), remoteGuid(), "close method");
             });
         } else {
             // else 早已经关闭

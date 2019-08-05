@@ -18,8 +18,12 @@ package com.wjybxx.fastjgame.example;
 
 import com.google.protobuf.AbstractMessage;
 import com.wjybxx.fastjgame.net.MessageMappingStrategy;
+import com.wjybxx.fastjgame.utils.ClassScanner;
 import it.unimi.dsi.fastutil.objects.Object2IntMap;
 import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
+import org.apache.commons.lang3.StringUtils;
+
+import java.util.Set;
 
 /**
  * 基于hash的映射方法，由类的完整名字计算hash值。
@@ -31,31 +35,24 @@ import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
  */
 public class ExampleHashMappingStrategy implements MessageMappingStrategy {
 
-    /** 外部类信息 */
-    private final Class<?>[] outerClassArray;
+    /** protoBuffer导出类文件夹 */
+    private final String pkgName;
 
-    public ExampleHashMappingStrategy(Class<?> outerClass) {
-        this(new Class[]{outerClass});
-    }
-
-    public ExampleHashMappingStrategy(Class<?>... outerClassArray) {
-        this.outerClassArray = outerClassArray;
+    public ExampleHashMappingStrategy(String pkgName) {
+        this.pkgName = pkgName;
     }
 
     @Override
     public Object2IntMap<Class<?>> mapping() throws Exception {
         Object2IntMap<Class<?>> result =  new Object2IntOpenHashMap<>();
 
-        for (Class<?> outerClass:outerClassArray) {
-            Class<?>[] declaredClasses = outerClass.getDeclaredClasses();
-            for (Class<?> clazz:declaredClasses) {
-                if (!AbstractMessage.class.isAssignableFrom(clazz)) {
-                    continue;
-                }
-                result.put(clazz, clazz.getCanonicalName().hashCode());
-            }
-        }
+        Set<Class<?>> allClass = ClassScanner.findAllClass(pkgName,
+                name -> StringUtils.countMatches(name, "$") == 1,
+                AbstractMessage.class::isAssignableFrom);
 
+        for (Class<?> messageClass:allClass) {
+            result.put(messageClass, messageClass.getCanonicalName().hashCode());
+        }
         return result;
     }
 }

@@ -103,6 +103,9 @@ public class S2CSessionManager implements SessionManager {
     public void tick() {
         for (UserInfo userInfo:userInfoMap.values()) {
             for (SessionWrapper sessionWrapper: userInfo.sessionWrapperMap.values()){
+                // 检查清空缓冲区
+                sessionWrapper.checkFlush();
+
                 // 检测超时的rpc调用
                 FastCollectionsUtils.removeIfAndThen(sessionWrapper.getRpcPromiseMap(),
                         (long k, RpcPromiseInfo rpcPromiseInfo) -> netTimeManager.getSystemMillTime() >= rpcPromiseInfo.timeoutMs,
@@ -177,8 +180,7 @@ public class S2CSessionManager implements SessionManager {
     @Override
     public void send(long localGuid, long clientGuid, @Nonnull Object message){
         ifSessionOk(localGuid, clientGuid, sessionWrapper -> {
-            OneWayMessage oneWayMessage = new OneWayMessage(sessionWrapper.nextSequence(), message);
-            sessionWrapper.writeAndFlush(oneWayMessage);
+            sessionWrapper.write(new UnsentOneWayMessage(message));
         });
     }
 
@@ -194,8 +196,14 @@ public class S2CSessionManager implements SessionManager {
     @Override
     public void sendRpcResponse(long localGuid, long clientGuid, boolean sync, long requestGuid, @Nonnull RpcResponse response) {
         ifSessionOk(localGuid, clientGuid, sessionWrapper -> {
-            RpcResponseMessage responseMessage = new RpcResponseMessage(sessionWrapper.nextSequence(), requestGuid, response);
-            sessionWrapper.writeAndFlush(responseMessage);
+            UnsentRpcResponse unsentRpcResponse = new UnsentRpcResponse(requestGuid, response);
+            if (sync) {
+                // 远程发来的同步rpc调用，立即返回
+                sessionWrapper.writeAndFlush(unsentRpcResponse);
+            } else {
+                // 非同步调用，不着急返回
+                sessionWrapper.write(unsentRpcResponse);
+            }
         });
     }
 
@@ -220,12 +228,18 @@ public class S2CSessionManager implements SessionManager {
             removeSession(localGuid, clientGuid,"cached message is too much! cacheMessageNum="+sessionWrapper.getCacheMessageNum());
             responsePromise.trySuccess(RpcResponse.SESSION_CLOSED);
         }else {
-            RpcRequestMessage rpcRequestMessage = new RpcRequestMessage(sessionWrapper.getMessageQueue().nextSequence(), sync, sessionWrapper.nextRequestGuid(), request);
-            RpcPromiseInfo rpcPromiseInfo = new RpcPromiseInfo(responsePromise, netTimeManager.getSystemMillTime() + timeoutMs);
-            // 必须先保存promise，再发送消息，严格的时序保证
-            sessionWrapper.getRpcPromiseMap().put(rpcRequestMessage.getRequestGuid(), rpcPromiseInfo);
-            // 注意：这行代码两个控制器不一样，一个是放入了缓存，一个是立即发送
-            sessionWrapper.writeAndFlush(rpcRequestMessage);
+            UnsentRpcRequest rpcRequest = new UnsentRpcRequest(sessionWrapper.nextRequestGuid(), sync, request);
+            // 在发送前，保存promise信息
+            long deadline = timeoutMs <= 0 ? Long.MAX_VALUE : netTimeManager.getSystemMillTime() + timeoutMs;
+            RpcPromiseInfo rpcPromiseInfo = new RpcPromiseInfo(responsePromise, deadline);
+            sessionWrapper.getRpcPromiseMap().put(rpcRequest.getRpcRequestGuid(), rpcPromiseInfo);
+            if (sync) {
+                // 同步调用，尝试立即发送
+                sessionWrapper.writeAndFlush(rpcRequest);
+            } else {
+                // 添加到缓存队列，稍后发送
+                sessionWrapper.write(rpcRequest);
+            }
         }
     }
 
@@ -453,7 +467,7 @@ public class S2CSessionManager implements SessionManager {
         S2CSession session = new S2CSession(userInfo.netContext, userInfo.bindResult.getHostAndPort(), managerWrapper,
                 requestParam.getClientGuid(), clientToken.getClientRoleType());
 
-        SessionWrapper sessionWrapper = new SessionWrapper(userInfo, session);
+        SessionWrapper sessionWrapper = new SessionWrapper(userInfo, session, netConfigManager.flushThreshold());
         userInfo.sessionWrapperMap.put(requestParam.getClientGuid(),sessionWrapper);
 
         // 分配新的token并进入等待状态
@@ -581,8 +595,8 @@ public class S2CSessionManager implements SessionManager {
     void onRcvClientAckPing(AckPingPongEventParam ackPingParam){
         final Channel eventChannel = ackPingParam.channel();
         tryUpdateMessageQueue(eventChannel,ackPingParam,sessionWrapper -> {
-            MessageQueue messageQueue = sessionWrapper.getMessageQueue();
-            sessionWrapper.writeAndFlush(new AckPingPongMessage(messageQueue.nextSequence()));
+            // ack心跳包立即返回
+            sessionWrapper.writeAndFlush(new UnsentAckPingPong());
         });
     }
 
@@ -639,12 +653,13 @@ public class S2CSessionManager implements SessionManager {
         final RpcRequestMessageTO requestMessageTO = rpcRequestEventParam.messageTO();
         tryUpdateMessageQueue(eventChannel, rpcRequestEventParam, sessionWrapper -> {
             UserInfo userInfo = sessionWrapper.userInfo;
+            // 构建rpc结果通道
             StandardRpcResponseChannel rpcResponseChannel = new StandardRpcResponseChannel(sessionWrapper.session,
                     requestMessageTO.isSync(), requestMessageTO.getRequestGuid());
+            // 尝试提交到用户线程
             ConcurrentUtils.tryCommit(userInfo.netContext.localEventLoop(), () -> {
                 try {
-                    userInfo.messageHandler.onRpcRequest(sessionWrapper.session, requestMessageTO.getRequest(),
-                            rpcResponseChannel);
+                    userInfo.messageHandler.onRpcRequest(sessionWrapper.session, requestMessageTO.getRequest(), rpcResponseChannel);
                 } catch (Exception e){
                     ConcurrentUtils.rethrow(e);
                 }
@@ -679,6 +694,7 @@ public class S2CSessionManager implements SessionManager {
 
         tryUpdateMessageQueue(eventChannel, oneWayMessageEventParam, sessionWrapper -> {
             UserInfo userInfo = sessionWrapper.userInfo;
+            // 尝试提交到用户线程
             ConcurrentUtils.tryCommit(userInfo.netContext.localEventLoop(), () -> {
                 try {
                     userInfo.messageHandler.onMessage(sessionWrapper.session, oneWayMessageTO.getMessage());
@@ -764,10 +780,15 @@ public class S2CSessionManager implements SessionManager {
          * 当前会话上的rpc请求
          */
         private final Long2ObjectMap<RpcPromiseInfo> rpcPromiseMap = new Long2ObjectOpenHashMap<>();
+        /**
+         * 清空缓冲区的阈值，当缓冲区消息数达到该值值，清空待发送缓冲区
+         */
+        private final int flushThreshold;
 
-        SessionWrapper(UserInfo userInfo, S2CSession session) {
+        SessionWrapper(UserInfo userInfo, S2CSession session, int flushThreshold) {
             this.userInfo = userInfo;
             this.session = session;
+            this.flushThreshold = flushThreshold;
         }
 
         S2CSession getSession() {
@@ -828,13 +849,56 @@ public class S2CSessionManager implements SessionManager {
         }
 
         /**
-         * 立即发送一个消息
+         * 写入数据到缓存，可能会立即发送
+         * @param unsentMessage 为发送的原始消息
          */
-        void writeAndFlush(NetMessage message){
-            // 服务器不需要设置它的超时时间，只需要设置捎带确认的ack
-            messageQueue.getSentQueue().addLast(message);
+        void write(UnsentMessage unsentMessage) {
+            messageQueue.getNeedSendQueue().add(unsentMessage);
+            if (messageQueue.getNeedSendQueue().size() >= flushThreshold) {
+                flushAllUnsentMessage();
+            }
+        }
+
+        /**
+         * 清空缓存
+         */
+        void flushAllUnsentMessage() {
+            UnsentMessage unsentMessage;
+            while ((unsentMessage = messageQueue.getNeedSendQueue().pollFirst()) != null) {
+                MessageTO messageTO = transferToSentMessage(unsentMessage);
+                channel.write(messageTO);
+            }
+            channel.flush();
+        }
+
+
+        /**
+         * 立即发送一个消息(不进入待发送队列，直接进入已发送队列)
+         */
+        void writeAndFlush(UnsentMessage unsentMessage){
+            MessageTO messageTO = transferToSentMessage(unsentMessage);
             // 发送
-            channel.writeAndFlush(message.build(messageQueue.getAck()));
+            channel.writeAndFlush(messageTO);
+        }
+
+        /**
+         * 将一个未发送消息转换为已发送消息
+         */
+        private MessageTO transferToSentMessage(UnsentMessage unsentMessage) {
+            // 分配sequence
+            NetMessage netMessage = unsentMessage.build(messageQueue.nextSequence());
+            messageQueue.getSentQueue().addLast(netMessage);
+            // 发送前添加ack
+            return netMessage.build(messageQueue.getAck());
+        }
+
+        /**
+         * 检查是否需要清空缓冲区
+         */
+        void checkFlush() {
+            if (messageQueue.getNeedSendQueue().size() > 0) {
+                flushAllUnsentMessage();
+            }
         }
 
         /**

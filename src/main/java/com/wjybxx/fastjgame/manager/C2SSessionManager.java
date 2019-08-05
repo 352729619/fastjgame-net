@@ -135,8 +135,8 @@ public class C2SSessionManager implements SessionManager {
                         @Nonnull ChannelInitializerSupplier initializerSupplier,
                         @Nonnull SessionLifecycleAware<C2SSession> lifecycleAware,
                         @Nonnull MessageHandler messageHandler) throws IllegalArgumentException{
-        // 已注册
         long localGuid = netContext.localGuid();
+        // 已注册
         if (getSessionWrapper(localGuid, serverGuid) != null){
             throw new IllegalArgumentException("session localGuid " + localGuid + "- serverGuid " + serverGuid+ " registered before.");
         }
@@ -534,7 +534,7 @@ public class C2SSessionManager implements SessionManager {
         }
 
         /**
-         * 提阿尼啊到待发送队列
+         * 添加到待发送队列
          * @param unsentMessage 未发送的消息
          */
         protected void addToNeedSendQueue(UnsentMessage unsentMessage) {
@@ -840,6 +840,7 @@ public class C2SSessionManager implements SessionManager {
             messageQueue.getSentQueue().addLast(netMessage);
             // 更新ack超时时间
             netMessage.setTimeout(nextAckTimeout());
+            // 获取最新ack
             return netMessage.build(messageQueue.getAck());
         }
 

@@ -78,21 +78,21 @@ public class AcceptorManager {
         serverBootstrap.childHandler(initializer);
 
         // parentGroup参数
-        serverBootstrap.option(ChannelOption.SO_BACKLOG,400);
-        serverBootstrap.option(ChannelOption.SO_REUSEADDR,true);
+        serverBootstrap.option(ChannelOption.SO_BACKLOG, 400);
+        serverBootstrap.option(ChannelOption.SO_REUSEADDR, true);
 
         // childGroup参数
-        serverBootstrap.childOption(ChannelOption.SO_KEEPALIVE,false);
-        serverBootstrap.childOption(ChannelOption.TCP_NODELAY,true);
+        serverBootstrap.childOption(ChannelOption.SO_KEEPALIVE, false);
+        serverBootstrap.childOption(ChannelOption.TCP_NODELAY, true);
         serverBootstrap.childOption(ChannelOption.SO_SNDBUF, netConfigManager.sndBufferAsServer());
         serverBootstrap.childOption(ChannelOption.SO_RCVBUF, netConfigManager.revBufferAsServer());
-        serverBootstrap.childOption(ChannelOption.SO_LINGER,0);
-        serverBootstrap.childOption(ChannelOption.SO_REUSEADDR,true);
+        serverBootstrap.childOption(ChannelOption.SO_LINGER, 0);
+        serverBootstrap.childOption(ChannelOption.SO_REUSEADDR, true);
 
         ChannelFuture channelFuture = serverBootstrap.bind(host, port);
         try {
             channelFuture.sync();
-            logger.info("bind {}:{} success.",host,port);
+            logger.info("bind {}:{} success.", host, port);
             return new BindResult(channelFuture.channel(), new HostAndPort(host, port));
         } catch (InterruptedException e) {
             // ignore e
@@ -144,13 +144,13 @@ public class AcceptorManager {
         bootstrap.channel(NioSocketChannel.class);
         bootstrap.handler(initializer);
 
-        bootstrap.option(ChannelOption.SO_KEEPALIVE,false);
-        bootstrap.option(ChannelOption.TCP_NODELAY,true);
+        bootstrap.option(ChannelOption.SO_KEEPALIVE, false);
+        bootstrap.option(ChannelOption.TCP_NODELAY, true);
         bootstrap.option(ChannelOption.SO_SNDBUF, netConfigManager.sndBufferAsClient());
         bootstrap.option(ChannelOption.SO_RCVBUF, netConfigManager.revBufferAsClient());
-        bootstrap.option(ChannelOption.SO_LINGER,0);
-        bootstrap.option(ChannelOption.SO_REUSEADDR,true);
-        return bootstrap.connect(hostAndPort.getHost(),hostAndPort.getPort());
+        bootstrap.option(ChannelOption.SO_LINGER, 0);
+        bootstrap.option(ChannelOption.SO_REUSEADDR, true);
+        return bootstrap.connect(hostAndPort.getHost(), hostAndPort.getPort());
     }
 
     /**
@@ -160,7 +160,7 @@ public class AcceptorManager {
      * @return 注意！使用channel 需要调用 {@link Channel#isActive()}检查是否成功和远程建立连接
      */
     public Channel connectSyn(HostAndPort hostAndPort, ChannelInitializer<SocketChannel> initializer) {
-        ChannelFuture channelFuture= connectAsyn(hostAndPort,initializer);
+        ChannelFuture channelFuture= connectAsyn(hostAndPort, initializer);
         channelFuture.awaitUninterruptibly();
         return channelFuture.channel();
     }

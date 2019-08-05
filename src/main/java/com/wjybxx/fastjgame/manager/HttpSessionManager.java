@@ -122,7 +122,7 @@ public class HttpSessionManager {
 		CollectionUtils.removeIfAndThen(userInfo.sessionWrapperMap,
 				(channel, sessionWrapper) -> true,
 				(channel, sessionWrapper) -> NetUtils.closeQuietly(channel));
-
+		// 绑定的端口需要释放
 		NetUtils.closeQuietly(userInfo.bindResult.getChannel());
 	}
 
@@ -172,7 +172,7 @@ public class HttpSessionManager {
 	}
 
 	/**
-	 * 关闭session，非当前线程调用。
+	 * 关闭session。
 	 */
 	public void removeSession(HttpSession httpSession, Channel channel) {
 		UserInfo userInfo = userInfoMap.get(httpSession.localGuid());

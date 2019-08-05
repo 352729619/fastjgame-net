@@ -114,8 +114,9 @@ public class S2CSession extends AbstractSession implements IS2CSession {
     @Override
     public ListenableFuture<?> close() {
         if (stateHolder.compareAndSet(true, false)) {
+            // 可能是自身发起关闭请求，因此可能在当前线程
             return EventLoopUtils.submitOrRun(netContext.netEventLoop(), () -> {
-                return getSessionManager().removeSession(localGuid(), remoteGuid(), "close");
+                getSessionManager().removeSession(localGuid(), remoteGuid(), "close");
             });
         } else {
             // else 已关闭

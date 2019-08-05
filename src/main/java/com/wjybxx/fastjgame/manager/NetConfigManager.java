@@ -19,7 +19,6 @@ package com.wjybxx.fastjgame.manager;
 import com.google.inject.Inject;
 import com.wjybxx.fastjgame.configwrapper.ConfigWrapper;
 import com.wjybxx.fastjgame.utils.ConfigLoader;
-import com.wjybxx.fastjgame.utils.NetUtils;
 
 import javax.annotation.concurrent.ThreadSafe;
 import java.io.IOException;
@@ -39,19 +38,8 @@ public class NetConfigManager  {
      * 网络包配置文件名字
      */
     private static final String NET_CONFIG_NAME = "net_config.properties";
-
+    /** 原始配置文件 */
     private final ConfigWrapper configWrapper;
-
-    /**
-     * 本机ip
-     */
-    private final String localIp;
-
-    /**
-     * 公网ip(好像不是很好处理，走配置倒是可以，就是有点不智能)
-     * 作为备选方案
-     */
-    private final String outerIp;
 
     /** 帧间隔 */
     private final int frameInterval;
@@ -66,8 +54,6 @@ public class NetConfigManager  {
     private final int revBufferAsServer;
     private final int sndBufferAsClient;
     private final int revBufferAsClient;
-    private final int ringBufferSize;
-    private final int globalExecutorThreadNum;
 
     private final int connectMaxTryTimes;
     private final int connectTimeout;
@@ -89,8 +75,6 @@ public class NetConfigManager  {
     @Inject
     public NetConfigManager() throws IOException {
         configWrapper = ConfigLoader.loadConfig(NetConfigManager.class.getClassLoader(), NET_CONFIG_NAME);
-        localIp = configWrapper.getAsString("localIp", NetUtils.getLocalIp());
-        outerIp = configWrapper.getAsString("outerIp", NetUtils.getOuterIp());
 
         frameInterval = configWrapper.getAsInt("frameInterval");
 
@@ -103,8 +87,6 @@ public class NetConfigManager  {
         revBufferAsServer = configWrapper.getAsInt("revBufferAsServer");
         sndBufferAsClient = configWrapper.getAsInt("sndBufferAsClient");
         revBufferAsClient = configWrapper.getAsInt("revBufferAsClient");
-        ringBufferSize = configWrapper.getAsInt("ringBufferSize");
-        globalExecutorThreadNum = configWrapper.getAsInt("globalExecutorThreadNum");
 
         serverMaxCacheNum = configWrapper.getAsInt("serverMaxCacheNum");
         clientMaxCacheNum = configWrapper.getAsInt("clientMaxCacheNum");
@@ -134,20 +116,6 @@ public class NetConfigManager  {
      */
     public ConfigWrapper properties() {
         return configWrapper;
-    }
-
-    /**
-     * 获取本机内网ip
-     */
-    public String localIp() {
-        return localIp;
-    }
-
-    /**
-     * 获取本机外网ip，如果没有，则是内网ip
-     */
-    public String outerIp() {
-        return outerIp;
     }
 
     /**
@@ -193,13 +161,6 @@ public class NetConfigManager  {
      */
     public int revBufferAsClient(){
         return revBufferAsClient;
-    }
-
-    /**
-     * 全局线程池最大线程数
-     */
-    public int globalExecutorThreadNum(){
-        return globalExecutorThreadNum;
     }
 
     /**
@@ -257,13 +218,6 @@ public class NetConfigManager  {
      */
     public long ackTimeout() {
         return ackTimeout;
-    }
-
-    /**
-     * 获取ringBuffer缓冲区大小，必须是2的整次幂
-     */
-    public int ringBufferSize() {
-        return ringBufferSize;
     }
 
     /**

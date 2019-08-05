@@ -61,7 +61,7 @@ public class HttpClientManager extends AbstractThreadLifeCycleHelper {
 
     @Override
     protected void startImp() {
-        // nothing
+        // do nothing
     }
 
     @Override
@@ -143,10 +143,8 @@ public class HttpClientManager extends AbstractThreadLifeCycleHelper {
         } else {
             safeUrl = "http://" + url;
         }
-
-        if (safeUrl.charAt(safeUrl.length()-1) == '?'){
-            safeUrl = safeUrl;
-        }else {
+        // 末尾添加参数之前添加?
+        if (safeUrl.charAt(safeUrl.length()-1) != '?'){
             safeUrl = safeUrl + "?";
         }
         return safeUrl;
@@ -166,7 +164,7 @@ public class HttpClientManager extends AbstractThreadLifeCycleHelper {
     }
 
     /**
-     * 发布事件回调
+     * 封装原生回调，以保证线程安全
      */
     private static class DelegateEventCallBack implements Callback {
 
@@ -180,6 +178,7 @@ public class HttpClientManager extends AbstractThreadLifeCycleHelper {
 
         @Override
         public void onFailure(@Nonnull Call call, @Nonnull IOException cause) {
+            // 提交到用户所在线程，以保证线程安全
             ConcurrentUtils.tryCommit(eventLoop, () -> {
                 try {
                     responseCallback.onFailure(call, cause);
@@ -191,6 +190,7 @@ public class HttpClientManager extends AbstractThreadLifeCycleHelper {
 
         @Override
         public void onResponse(@Nonnull Call call, @Nonnull Response response) throws IOException {
+            // 提交到用户所在线程，以保证线程安全
             ConcurrentUtils.tryCommit(eventLoop, () -> {
                 try {
                     responseCallback.onResponse(call, response);
