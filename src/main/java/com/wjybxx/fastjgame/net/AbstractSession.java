@@ -87,6 +87,9 @@ public abstract class AbstractSession implements Session{
 
     @Override
     public final RpcResponse syncRpc(@Nonnull Object request, long timeoutMs) {
+        if (timeoutMs <= 0) {
+            throw new IllegalArgumentException("timeoutMs");
+        }
         // 逻辑层校验，会话已关闭，立即返回结果
         if (!isActive()) {
             return RpcResponse.SESSION_CLOSED;

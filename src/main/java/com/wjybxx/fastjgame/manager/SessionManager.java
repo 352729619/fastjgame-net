@@ -44,7 +44,7 @@ public interface SessionManager {
      * 向远程发送一个rpc请求
      * @param localGuid 我的标识
      * @param remoteGuid 远程节点标识
-     * @param timeoutMs 超时时间
+     * @param timeoutMs 超时时间，小于等于0表示不超时
      * @param sync 是否是同步rpc调用，如果是同步rpc调用，需要立即发送，不进入缓存。
      * @param request rpc请求内容
      * @param responsePromise 用于监听结果

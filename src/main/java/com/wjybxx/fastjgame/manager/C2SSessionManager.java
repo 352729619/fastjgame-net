@@ -219,7 +219,7 @@ public class C2SSessionManager implements SessionManager {
      * @param rpcPromise 接收结果的promise
      */
     @Override
-    public void rpc(long localGuid, long serverGuid, @Nonnull Object request, long timeoutMs, boolean sync, Promise<RpcResponse> rpcPromise){
+    public void rpc(long localGuid, long serverGuid, @Nonnull Object request, final long timeoutMs, boolean sync, Promise<RpcResponse> rpcPromise){
         SessionWrapper sessionWrapper = getSessionWrapper(localGuid, serverGuid);
         if (null == sessionWrapper){
             logger.warn("server {} is removed, but try send rpcRequest.",serverGuid);
@@ -234,7 +234,8 @@ public class C2SSessionManager implements SessionManager {
         }else {
             UnsentRpcRequest rpcRequest = new UnsentRpcRequest(sessionWrapper.nextRequestGuid(), sync, request);
             // 在发送前，保存promise信息
-            RpcPromiseInfo rpcPromiseInfo = new RpcPromiseInfo(rpcPromise, netTimeManager.getSystemMillTime() + timeoutMs);
+            long deadline = timeoutMs <= 0 ? Long.MAX_VALUE : netTimeManager.getSystemMillTime() + timeoutMs;
+            RpcPromiseInfo rpcPromiseInfo = new RpcPromiseInfo(rpcPromise, deadline);
             sessionWrapper.getRpcPromiseMap().put(rpcRequest.getRpcRequestGuid(), rpcPromiseInfo);
             if (sync) {
                 // 同步调用，尝试立即发送

@@ -68,7 +68,7 @@ public interface Session {
     long localGuid();
 
     /**
-     * 会话管理的本地角色类型
+     * 会话关联的本地角色类型
      */
     RoleType localRole();
 
@@ -113,7 +113,7 @@ public interface Session {
     /**
      * 发送一个rpc请求给对方，并阻塞到返回结果或超时。
      * @param request rpc请求对象
-     * @param timeoutMs 超时时间，毫秒。小于等于0表示不超时。
+     * @param timeoutMs 超时时间，毫秒，必须大于0，否则死锁可能！！！
      * @return rpc返回结果
      */
     RpcResponse syncRpc(@Nonnull Object request, long timeoutMs);
