@@ -19,7 +19,6 @@ package com.wjybxx.fastjgame.manager;
 import com.google.inject.Inject;
 import com.wjybxx.fastjgame.concurrent.DefaultThreadFactory;
 import com.wjybxx.fastjgame.concurrent.misc.AbstractThreadLifeCycleHelper;
-import com.wjybxx.fastjgame.manager.NetConfigManager;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 
@@ -27,6 +26,12 @@ import javax.annotation.concurrent.ThreadSafe;
 
 /**
  * Netty线程管理器。
+ * 最终决定还是每一个NetEventLoop一个，因为资源分配各有缺陷。
+ * why?
+ * 如果以NetEventLoopGroup进行分配，在用户不清楚的情况下，用户可能认为调整NetEventLoopGroup的线程数就可以提高网络性能，但实际上不行。
+ * 如果没有调整Netty的线程数，它不能做到随着NetEventLoop线程的增加使性能也增加的目的。
+ *
+ * 以NetEventLoop为单位分配资源也有坏处，最明显的坏处就是线程数很多。
  *
  * @author wjybxx
  * @version 1.0
@@ -37,7 +42,6 @@ import javax.annotation.concurrent.ThreadSafe;
 public class NettyThreadManager extends AbstractThreadLifeCycleHelper {
 
     private final NetConfigManager netConfigManager;
-
     private EventLoopGroup bossGroup;
     private EventLoopGroup workerGroup;
 
@@ -52,7 +56,7 @@ public class NettyThreadManager extends AbstractThreadLifeCycleHelper {
     @Override
     protected void startImp() {
         bossGroup = new NioEventLoopGroup(1, new DefaultThreadFactory("ACCEPTOR_THREAD"));
-        workerGroup = new NioEventLoopGroup(netConfigManager.maxIoThreadNum(), new DefaultThreadFactory("IO_THREAD"));
+        workerGroup = new NioEventLoopGroup(netConfigManager.maxIOThreadNumPerEventLoop(), new DefaultThreadFactory("IO_THREAD"));
     }
 
     /**

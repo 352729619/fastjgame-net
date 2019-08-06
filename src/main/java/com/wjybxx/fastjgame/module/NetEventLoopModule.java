@@ -23,18 +23,20 @@ import com.wjybxx.fastjgame.manager.NetManagerWrapper;
 import com.wjybxx.fastjgame.manager.*;
 
 /**
- * 网络模块需要的所有类
+ * 网络模块，EventLoop级别的单例。
+ *
  * @author wjybxx
  * @version 1.0
  * date - 2019/8/2
  * github - https://github.com/hl845740757
  */
-public class NetModule extends AbstractModule {
+public class NetEventLoopModule extends AbstractModule {
 
 	@Override
 	protected void configure() {
-		bind(NetEventLoopManager.class).in(Singleton.class);
+		binder().requireExplicitBindings();
 
+		bind(NetEventLoopManager.class).in(Singleton.class);
 		bind(C2SSessionManager.class).in(Singleton.class);
 		bind(S2CSessionManager.class).in(Singleton.class);
 		bind(HttpSessionManager.class).in(Singleton.class);
@@ -42,10 +44,9 @@ public class NetModule extends AbstractModule {
 
 		bind(NettyThreadManager.class).in(Singleton.class);
 		bind(HttpClientManager.class).in(Singleton.class);
-
 		bind(AcceptorManager.class).in(Singleton.class);
-		bind(TokenManager.class).in(Singleton.class);
 
+		bind(TokenManager.class).in(Singleton.class);
 		bind(NetTimeManager.class).in(Singleton.class);
 		bind(NetTimerManager.class).in(Singleton.class);
 

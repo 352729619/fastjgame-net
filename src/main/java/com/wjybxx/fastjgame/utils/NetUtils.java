@@ -16,6 +16,8 @@
 
 package com.wjybxx.fastjgame.utils;
 
+import com.wjybxx.fastjgame.configwrapper.ConfigWrapper;
+import com.wjybxx.fastjgame.manager.NetConfigManager;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.channel.Channel;
@@ -27,6 +29,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.Closeable;
+import java.io.IOException;
 import java.net.*;
 import java.util.Enumeration;
 
@@ -43,13 +46,28 @@ public class NetUtils {
     /**
      * 本机内网地址
      */
-    private static final String localIp = findLocalIp();
+    private static final String localIp;
     /**
      * 本机外网地址
      */
-    private static final String outerIp = findOuterIp();
+    private static final String outerIp;
 
     static {
+        String tempLocalIp = null;
+        String tempOuterIp = null;
+
+        // 优先使用配置指定的ip
+        try {
+            ConfigWrapper configWrapper = ConfigLoader.loadConfig(ClassLoader.getSystemClassLoader(), NetConfigManager.NET_CONFIG_NAME);
+            tempLocalIp = configWrapper.getAsString("localIp");
+            tempOuterIp = configWrapper.getAsString("outerIp");
+
+        } catch (IOException ignore) {
+        }
+
+        localIp = null == tempLocalIp ? findLocalIp() : tempLocalIp;
+        outerIp = null == tempOuterIp ? findOuterIp() : tempOuterIp;
+
         logger.info("localIp {}", localIp);
         logger.info("outerIp {}", outerIp);
     }
@@ -264,5 +282,10 @@ public class NetUtils {
             socketChannelConfig.setPerformancePreferences(0,1,2);
             socketChannelConfig.setAllocator(PooledByteBufAllocator.DEFAULT);
         }
+    }
+
+    public static void main(String[] args) {
+        System.out.println("localIp " + localIp);
+        System.out.println("outerIp " + outerIp);
     }
 }

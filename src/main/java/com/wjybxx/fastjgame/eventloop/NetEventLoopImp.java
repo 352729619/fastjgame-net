@@ -16,13 +16,11 @@
 
 package com.wjybxx.fastjgame.eventloop;
 
-import com.google.inject.Guice;
 import com.google.inject.Injector;
 import com.wjybxx.fastjgame.concurrent.*;
 import com.wjybxx.fastjgame.manager.*;
 import com.wjybxx.fastjgame.misc.NetContext;
-import com.wjybxx.fastjgame.module.NetGlobalModule;
-import com.wjybxx.fastjgame.module.NetModule;
+import com.wjybxx.fastjgame.module.NetEventLoopModule;
 import com.wjybxx.fastjgame.net.*;
 import com.wjybxx.fastjgame.utils.ConcurrentUtils;
 import com.wjybxx.fastjgame.utils.FastCollectionsUtils;
@@ -37,7 +35,6 @@ import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ThreadFactory;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.LockSupport;
 
 /**
@@ -49,10 +46,11 @@ import java.util.concurrent.locks.LockSupport;
  */
 public class NetEventLoopImp extends SingleThreadEventLoop implements NetEventLoop{
 
-	/** 用于获取全局单例 */
-	private static final Injector globalModule = Guice.createInjector(new NetGlobalModule());
+	/** 处理任务时，每次最多处理数量 */
+	private static final int MAX_BATCH_SIZE = 2048;
 
 	private final NetManagerWrapper managerWrapper;
+	private final NetEventLoopManager netEventLoopManager;
 	private final NetConfigManager netConfigManager;
 	private final NettyThreadManager nettyThreadManager;
 	private final HttpClientManager httpClientManager;
@@ -70,32 +68,28 @@ public class NetEventLoopImp extends SingleThreadEventLoop implements NetEventLo
 	/** 已注册的用户集合 */
 	private final Long2ObjectMap<NetContextImp> registeredUserMap = new Long2ObjectOpenHashMap<>();
 
-	public NetEventLoopImp(@Nullable EventLoopGroup parent, @Nonnull ThreadFactory threadFactory) {
-		this(parent, threadFactory, RejectedExecutionHandlers.reject());
-	}
-
-	public NetEventLoopImp(@Nullable EventLoopGroup parent, @Nonnull ThreadFactory threadFactory, @Nonnull RejectedExecutionHandler rejectedExecutionHandler) {
+	NetEventLoopImp(@Nonnull NetEventLoopGroup parent,
+					@Nonnull ThreadFactory threadFactory,
+					@Nonnull RejectedExecutionHandler rejectedExecutionHandler,
+					@Nonnull Injector parentInjector) {
 		super(parent, threadFactory, rejectedExecutionHandler);
 
 		// 使得新创建的injector可以直接使用全局单例
-		Injector injector = globalModule.createChildInjector(new NetModule());
-
-		// 发布自身，使得该eventLoop的其它管理器可以方便的获取该对象
-		// Q:为什么没使用threadLocal？
-		// A:本来想使用的，但是如果提供一个全局的接口的话，它也会对逻辑层开放，而逻辑层如果调用了一定会导致错误。使用threadLocal暴露了不该暴露的接口。
-		injector.getInstance(NetEventLoopManager.class).init(this);
-		// 创建其它管理器
+		Injector injector = parentInjector.createChildInjector(new NetEventLoopModule());
 		managerWrapper = injector.getInstance(NetManagerWrapper.class);
 		netConfigManager = managerWrapper.getNetConfigManager();
-
+		// 用于发布自己
+		netEventLoopManager = managerWrapper.getNetEventLoopManager();
+		// session管理
 		s2CSessionManager = managerWrapper.getS2CSessionManager();
 		c2SSessionManager = managerWrapper.getC2SSessionManager();
 		httpSessionManager = managerWrapper.getHttpSessionManager();
+		// 资源需要管理
 		nettyThreadManager = managerWrapper.getNettyThreadManager();
 		httpClientManager = managerWrapper.getHttpClientManager();
+		// 时间管理器和timer管理器
 		netTimeManager = managerWrapper.getNetTimeManager();
 		netTimerManager = managerWrapper.getNetTimerManager();
-
 		// 解决循环依赖
 		s2CSessionManager.setManagerWrapper(managerWrapper);
 		c2SSessionManager.setManagerWrapper(managerWrapper);
@@ -149,9 +143,7 @@ public class NetEventLoopImp extends SingleThreadEventLoop implements NetEventLo
 			registeredUserMap.put(localGuid, netContext);
 			// 监听用户线程关闭
 			if (registeredUserEventLoopSet.add(localEventLoop)) {
-				localEventLoop.terminationFuture().addListener(future -> {
-					onUserEventLoopTerminal(localEventLoop);
-				}, this);
+				localEventLoop.terminationFuture().addListener(future -> onUserEventLoopTerminal(localEventLoop), this);
 			}
 			return netContext;
 		});
@@ -160,6 +152,10 @@ public class NetEventLoopImp extends SingleThreadEventLoop implements NetEventLo
 	@Override
 	protected void init() throws Exception {
 		super.init();
+		// Q:为什么没使用threadLocal？
+		// A:本来想使用的，但是如果提供一个全局的接口的话，它也会对逻辑层开放，而逻辑层如果调用了一定会导致错误。使用threadLocal暴露了不该暴露的接口。
+		// 发布自身，使得该eventLoop的其它管理器可以方便的获取该对象
+		netEventLoopManager.publish(this);
 		nettyThreadManager.start();
 		httpClientManager.start();
 	}
@@ -167,8 +163,8 @@ public class NetEventLoopImp extends SingleThreadEventLoop implements NetEventLo
 	@Override
 	protected void loop() {
 		for (;;) {
-			// 执行任务
-			runAllTasks();
+			// 批量执行任务，避免任务太多时导致session得不到及时更新
+			runAllTasks(MAX_BATCH_SIZE);
 
 			// 更新时间
 			netTimeManager.update(System.currentTimeMillis());

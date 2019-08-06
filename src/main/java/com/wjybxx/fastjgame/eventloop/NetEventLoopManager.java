@@ -34,7 +34,7 @@ public class NetEventLoopManager {
 
 	}
 	/** 不允许外部调用，保证安全性 */
-	void init(NetEventLoopImp eventLoop) {
+	void publish(NetEventLoopImp eventLoop) {
 		this.eventLoop = eventLoop;
 	}
 

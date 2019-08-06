@@ -16,11 +16,11 @@
 
 package com.wjybxx.fastjgame.eventloop;
 
-import com.wjybxx.fastjgame.concurrent.EventLoop;
-import com.wjybxx.fastjgame.concurrent.EventLoopChooserFactory;
-import com.wjybxx.fastjgame.concurrent.ListenableFuture;
-import com.wjybxx.fastjgame.concurrent.MultiThreadEventLoopGroup;
+import com.google.inject.Guice;
+import com.google.inject.Injector;
+import com.wjybxx.fastjgame.concurrent.*;
 import com.wjybxx.fastjgame.misc.NetContext;
+import com.wjybxx.fastjgame.module.NetEventLoopGroupModule;
 import com.wjybxx.fastjgame.net.RoleType;
 
 import javax.annotation.Nonnull;
@@ -36,12 +36,27 @@ import java.util.concurrent.ThreadFactory;
  */
 public class NetEventLoopGroupImp extends MultiThreadEventLoopGroup implements NetEventLoopGroup{
 
-    public NetEventLoopGroupImp(int nThreads, @Nonnull ThreadFactory threadFactory) {
-        super(nThreads, threadFactory, null);
+    /**
+     * @see #NetEventLoopGroupImp(int, ThreadFactory, RejectedExecutionHandler, EventLoopChooserFactory)
+     */
+    public NetEventLoopGroupImp(int nThreads,
+                                @Nonnull ThreadFactory threadFactory,
+                                @Nonnull RejectedExecutionHandler rejectedExecutionHandler) {
+        this(nThreads, threadFactory, rejectedExecutionHandler, null);
     }
 
-    public NetEventLoopGroupImp(int nThreads, @Nonnull ThreadFactory threadFactory, @Nullable EventLoopChooserFactory chooserFactory) {
-        super(nThreads, threadFactory, chooserFactory, null);
+    /**
+     *
+     * @param nThreads 线程组内的线程数量
+     * @param threadFactory 线程工厂
+     * @param rejectedExecutionHandler 任务拒绝策略
+     * @param chooserFactory 负载均衡算法
+     */
+    public NetEventLoopGroupImp(int nThreads,
+                                @Nonnull ThreadFactory threadFactory,
+                                @Nonnull RejectedExecutionHandler rejectedExecutionHandler,
+                                @Nullable EventLoopChooserFactory chooserFactory) {
+        super(nThreads, threadFactory, rejectedExecutionHandler, chooserFactory, Guice.createInjector(new NetEventLoopGroupModule()));
     }
 
     @Nonnull
@@ -55,9 +70,13 @@ public class NetEventLoopGroupImp extends MultiThreadEventLoopGroup implements N
         return next().createContext(localGuid, localRole, localEventLoop);
     }
 
+    /**
+     * 自己把自己坑了一把，这里是超类构建的时候调用的，此时子类属性都是null，因此newChild需要的属性必须在context中
+     */
     @Nonnull
     @Override
-    protected NetEventLoop newChild(ThreadFactory threadFactory, Object context) {
-        return new NetEventLoopImp(this, threadFactory);
+    protected NetEventLoop newChild(ThreadFactory threadFactory, RejectedExecutionHandler rejectedExecutionHandler, Object context) {
+        return new NetEventLoopImp(this, threadFactory, rejectedExecutionHandler, (Injector) context);
     }
+
 }

@@ -16,10 +16,7 @@
 
 package com.wjybxx.fastjgame.example;
 
-import com.wjybxx.fastjgame.concurrent.DefaultEventLoop;
-import com.wjybxx.fastjgame.concurrent.DefaultThreadFactory;
-import com.wjybxx.fastjgame.concurrent.EventLoop;
-import com.wjybxx.fastjgame.concurrent.ListenableFuture;
+import com.wjybxx.fastjgame.concurrent.*;
 import com.wjybxx.fastjgame.eventloop.NetEventLoopGroup;
 import com.wjybxx.fastjgame.eventloop.NetEventLoopGroupImp;
 import com.wjybxx.fastjgame.misc.HostAndPort;
@@ -54,9 +51,9 @@ public class NetEventLoopExample {
 
         // 线程数可以动态调整
         int threadNum = 2;
-        NetEventLoopGroup netGroup = new NetEventLoopGroupImp(threadNum, new DefaultThreadFactory("NET-EVENT-LOOP"));
-        EventLoop userEventLoop1 = new DefaultEventLoop(null, new DefaultThreadFactory("SERVER"));
-        EventLoop userEventLoop2 = new DefaultEventLoop(null, new DefaultThreadFactory("CLIENT"));
+        NetEventLoopGroup netGroup = new NetEventLoopGroupImp(threadNum, new DefaultThreadFactory("NET-EVENT-LOOP"), RejectedExecutionHandlers.reject());
+        EventLoop userEventLoop1 = new DefaultEventLoop(null, new DefaultThreadFactory("SERVER"), RejectedExecutionHandlers.reject());
+        EventLoop userEventLoop2 = new DefaultEventLoop(null, new DefaultThreadFactory("CLIENT"), RejectedExecutionHandlers.reject());
 
         final int serverGuid = 1;
         final int clientGuid = 2;

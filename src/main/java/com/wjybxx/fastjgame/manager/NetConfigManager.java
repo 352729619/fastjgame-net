@@ -37,7 +37,8 @@ public class NetConfigManager  {
     /**
      * 网络包配置文件名字
      */
-    private static final String NET_CONFIG_NAME = "net_config.properties";
+    public static final String NET_CONFIG_NAME = "net_config.properties";
+
     /** 原始配置文件 */
     private final ConfigWrapper configWrapper;
 
@@ -48,7 +49,7 @@ public class NetConfigManager  {
     private final byte[] tokenKeyBytes;
     private final int tokenForbiddenTimeout;
 
-    private final int maxIoThreadNum;
+    private final int maxIOThreadNumPerEventLoop;
     private final int maxFrameLength;
     private final int sndBufferAsServer;
     private final int revBufferAsServer;
@@ -81,7 +82,7 @@ public class NetConfigManager  {
         tokenKeyBytes = configWrapper.getAsString("tokenKey").getBytes(StandardCharsets.UTF_8);
         tokenForbiddenTimeout = configWrapper.getAsInt("tokenForbiddenTimeout",3600);
 
-        maxIoThreadNum = configWrapper.getAsInt("maxIoThreadNum");
+        maxIOThreadNumPerEventLoop = configWrapper.getAsInt("maxIOThreadNumPerEventLoop");
         maxFrameLength = configWrapper.getAsInt("maxFrameLength");
         sndBufferAsServer = configWrapper.getAsInt("sndBufferAsServer");
         revBufferAsServer = configWrapper.getAsInt("revBufferAsServer");
@@ -127,8 +128,8 @@ public class NetConfigManager  {
     /**
      * netty IO 线程数量
      */
-    public int maxIoThreadNum() {
-        return maxIoThreadNum;
+    public int maxIOThreadNumPerEventLoop() {
+        return maxIOThreadNumPerEventLoop;
     }
     /**
      * 最大帧长度
